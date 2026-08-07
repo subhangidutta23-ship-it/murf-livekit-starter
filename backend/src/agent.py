@@ -1,4 +1,5 @@
 import logging
+import re
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -8,51 +9,151 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    RunContext,
+    UserInputTranscribedEvent,
     cli,
-    inference,
-    tokenize,
+    function_tool,
     room_io,
+    tokenize,
 )
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
+from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# Change this prompt to change what your voice agent does.
-# Financial Services: Government scheme explainers, banking literacy, fraud awareness
-SYSTEM_PROMPT = """You are a knowledgeable, patient, and trustworthy financial guide. Your role is to educate users on financial services, explain government schemes (such as PM Jan Dhan Yojana, Atal Pension Yojana, Sukanya Samriddhi Yojana, etc.), promote digital banking literacy, and build fraud awareness.
+# Core system instructions explicitly enforcing strict language matching and number formatting
+SYSTEM_PROMPT = """You are Sentinel, an emergency Disaster Response Voice Assistant operating for the National Emergency Management & Disaster Relief Command.
 
-Key guidelines:
-1. Explain complex financial concepts and government schemes in simple, everyday language.
-2. Provide practical advice on banking safety and scam prevention (e.g., never share OTPs, PINs, passwords, or click suspicious links).
-3. Keep responses conversational, empathetic, and direct—optimized for real-time voice interaction.
-4. Avoid complex formatting, emojis, special symbols, or lists that sound awkward when read aloud by text-to-speech.
-5. Remind users that you are an AI assistant and to never disclose private credentials or account passwords.
+CRITICAL LANGUAGE RULE:
+- You MUST respond in the EXACT same language that the user uses in their question.
+- If the user speaks or asks in English, you MUST respond ENTIRELY in English.
+- If the user speaks or asks in Hindi (or Hinglish/Devanagari), you MUST respond ENTIRELY in clear, natural Hindi using Devanagari script.
+- NEVER default to Hindi when the user asks in English.
+
+NUMBER SPOKEN FORM RULE:
+- NEVER output digits (like 1, 2, 3, 4, 100). Always write numbers out in full words!
+- When speaking in English, write out numbers in English words (e.g., "one", "two", "three", "four", "one hundred").
+- When speaking in Hindi, write out numbers in Hindi words (e.g., "एक", "दो", "तीन", "चार", "सौ").
+
+Core Capabilities:
+1. Flood & Drought Alerting: Real-time warnings, river levels, and drought advisories.
+2. Relief Coordination: Nearby emergency shelters, medical units, and food/water distribution centers.
+3. Welfare Check-ins & Missing Reports: Record safety status and log missing person reports.
+
+Voice Guidelines:
+- Keep all responses brief, direct, empathetic, and strictly formatted for clear text-to-speech audio streaming.
+- Do NOT use markdown tables, bullet characters, code blocks, or emojis.
 """
+
+# Common Hinglish/Hindi keywords for fallback detection
+HINDI_KEYWORDS = [
+    "नमस्ते", "सहायता", "मदद", "बाढ़", "सूखा", "सुरक्षित", "स्थान",
+    "पानी", "भोजन", "चिकित्सा", "राहत", "आपदा", "लापता", "खबर", "कहाँ", "कैसी", "बताओ",
+    "namaste", "madad", "baadh", "sookha", "rahat", "surakshit", "pani", "kahan", "kaise", "batao"
+]
 
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+    @function_tool
+    async def get_disaster_alerts(
+        self,
+        context: RunContext,
+        location: str,
+        disaster_type: str = "all",
+    ) -> str:
+        """Fetch active flood, drought, or disaster alerts and weather warnings for a location."""
+        logger.info(f"Checking disaster alerts for {location} (type: {disaster_type})")
+        loc_lower = location.lower()
+
+        if "flood" in disaster_type.lower() or "flood" in loc_lower or "baadh" in loc_lower or "all" in disaster_type.lower():
+            return (
+                f"Alert status for {location}: Level three Flash Flood Warning in effect until tomorrow morning. "
+                f"River levels are currently four feet above flood stage. Local authorities recommend moving to higher ground "
+                f"and avoiding low-lying roads. Evacuation center opened at North High School."
+            )
+        elif "drought" in disaster_type.lower() or "drought" in loc_lower or "sookha" in loc_lower:
+            return (
+                f"Alert status for {location}: Stage four Extreme Drought Advisory. Mandatory water conservation in place. "
+                f"Emergency water supply hubs are active at Central Park and West Community Center between eight AM and six PM."
+            )
+        else:
+            return (
+                f"Alert status for {location}: Active Flash Flood Warning and Moderate Drought Advisory for surrounding agricultural areas. "
+                f"Emergency services are on standby."
+            )
+
+    @function_tool
+    async def find_relief_centers(
+        self,
+        context: RunContext,
+        location: str,
+        resource_needed: str = "all",
+    ) -> str:
+        """Find nearby emergency shelters, food/water distribution centers, and medical hubs."""
+        logger.info(f"Searching relief centers near {location} for {resource_needed}")
+        return (
+            f"Relief centers near {location}: "
+            f"First, Central High School Shelter offering sleeping beds, clean water, warm food, and basic medical aid. "
+            f"Second, Eastside Disaster Supply Hub distributing bottled water, emergency rations, and hygiene kits daily. "
+            f"Third, Red Cross Mobile Medical Unit stationed at Fifth and Main Street."
+        )
+
+    @function_tool
+    async def submit_relief_request(
+        self,
+        context: RunContext,
+        location: str,
+        contact_name: str,
+        supplies_needed: str,
+        urgency: str = "standard",
+    ) -> str:
+        """Submit a request for emergency relief supplies, water, or non-life-threatening rescue assistance."""
+        logger.info(f"Submitting relief request for {contact_name} at {location} - Urgency: {urgency}")
+        req_id = "REL-" + str(abs(hash(contact_name + location)))[:6]
+        return (
+            f"Relief request {req_id} logged successfully for {contact_name} at {location}. "
+            f"Requested items: {supplies_needed}. Urgency: {urgency}. "
+            f"Local dispatch and volunteer relief teams have been notified for delivery prioritization."
+        )
+
+    @function_tool
+    async def perform_welfare_check_in(
+        self,
+        context: RunContext,
+        person_name: str,
+        location: str,
+        status: str,
+        medical_needs: str = "none",
+        contact_phone: str = "",
+    ) -> str:
+        """Record a welfare check-in for an individual or family to mark them safe or log their status."""
+        logger.info(f"Welfare check-in recorded: {person_name} at {location} - Status: {status}")
+        checkin_id = "WLC-" + str(abs(hash(person_name + status)))[:6]
+        return (
+            f"Welfare check-in {checkin_id} logged for {person_name}. Status marked as '{status}' at {location}. "
+            f"Family registry updated. Emergency contacts can verify status online or via the emergency hotline."
+        )
+
+    @function_tool
+    async def report_missing_person(
+        self,
+        context: RunContext,
+        person_name: str,
+        last_known_location: str,
+        details: str = "",
+    ) -> str:
+        """File an urgent missing person report for search and rescue teams during a disaster."""
+        logger.info(f"Missing person report created: {person_name} last seen at {last_known_location}")
+        case_id = "MIS-" + str(abs(hash(person_name + last_known_location)))[:6]
+        return (
+            f"Missing person report {case_id} registered for {person_name}. Last known location: {last_known_location}. "
+            f"Search and rescue coordination units and shelter intake desks have been alerted."
+        )
 
 
 server = AgentServer()
@@ -67,59 +168,60 @@ server.setup_fnc = prewarm
 
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
-    # Logging setup
-    # Add any other context you want in all log entries here
     ctx.log_context_fields = {
         "room": ctx.room.name,
     }
 
-    # Set up a voice AI pipeline using Murf Falcon, Gemini, Deepgram, and the LiveKit turn detector
+    # Voice AI pipeline using Deepgram multi-language STT and Murf TTS
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=deepgram.STT(model="nova-3"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
+        stt=deepgram.STT(model="nova-3", language="multi"),
         llm=google.LLM(
-                model="gemini-3.5-flash-lite",
-            ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
+            model="gemini-3.5-flash-lite",
+        ),
         tts=murf.TTS(
-                voice="Anisha", 
-                locale="en-IN",
-                style="Conversation",
-                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-                text_pacing=True
-            ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
+            voice="Anisha",
+            locale="hi-IN",
+            style="Conversation",
+            tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+            text_pacing=True,
+        ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
         preemptive_generation=True,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
+    # Event listener that runs on every user input turn
+    @session.on("user_input_transcribed")
+    def on_user_input(event: UserInputTranscribedEvent):
+        text = event.text.strip()
+        if not text:
+            return
 
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
+        logger.info(f"User transcription: '{text}'")
 
-    # Start the session, which initializes the voice pipeline and warms up the models
+        # Detect Devanagari characters or Hindi keywords
+        is_devanagari = bool(re.search(r'[\u0900-\u097F]', text))
+        has_hindi_keyword = any(kw in text.lower() for kw in HINDI_KEYWORDS)
+
+        # Dynamic Language Switching Logic with explicit number rules
+        if is_devanagari or has_hindi_keyword:
+            logger.info("Detected Hindi user input -> Directing LLM to respond in HINDI.")
+            session.instructions = (
+                f"{SYSTEM_PROMPT}\n\n"
+                "SYSTEM OVERRIDE INSTRUCTION: The user just spoke in HINDI. "
+                "You MUST reply strictly in HINDI (Devanagari script). "
+                "Write all numbers as full Hindi words (e.g. 'तीन', 'चार'). Do NOT use numeric digits."
+            )
+        else:
+            logger.info("Detected English user input -> Directing LLM to respond in ENGLISH.")
+            session.instructions = (
+                f"{SYSTEM_PROMPT}\n\n"
+                "SYSTEM OVERRIDE INSTRUCTION: The user just spoke in ENGLISH. "
+                "You MUST reply strictly in ENGLISH. Do not use Hindi. "
+                "Write all numbers as full English words (e.g. 'three', 'four'). Do NOT use numeric digits."
+            )
+
+    # Start the session
     await session.start(
         agent=Assistant(),
         room=ctx.room,
@@ -127,15 +229,13 @@ async def my_agent(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda params: (
                     noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                    if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
                     else noise_cancellation.BVC()
                 ),
             ),
         ),
     )
 
-    # Join the room and connect to the user
     await ctx.connect()
 
 
