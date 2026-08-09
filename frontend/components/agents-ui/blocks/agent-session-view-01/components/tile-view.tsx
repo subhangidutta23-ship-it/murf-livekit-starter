@@ -7,9 +7,13 @@ import {
   useLocalParticipant,
   useTracks,
   useVoiceAssistant,
+  useIsSpeaking,
+  useAgent,
 } from '@livekit/components-react';
 import { cn } from '@/lib/shadcn/utils';
 import { AudioVisualizer } from './audio-visualizer';
+import { DisasterAvatar } from '@/components/app/disaster-avatar';
+import { type AgentState } from '@/components/app/agent-state-indicator';
 
 const ANIMATION_TRANSITION: MotionProps['transition'] = {
   type: 'spring',
@@ -26,34 +30,10 @@ const tileViewClassNames = {
     'grid gap-x-2 place-content-center',
     'grid-cols-[1fr_1fr] grid-rows-[90px_1fr_90px]',
   ],
-  // Agent
-  // chatOpen: true,
-  // hasSecondTile: true
-  // layout: Column 1 / Row 1
-  // align: x-end y-center
   agentChatOpenWithSecondTile: ['col-start-1 row-start-1', 'self-center justify-self-end'],
-  // Agent
-  // chatOpen: true,
-  // hasSecondTile: false
-  // layout: Column 1 / Row 1 / Column-Span 2
-  // align: x-center y-center
   agentChatOpenWithoutSecondTile: ['col-start-1 row-start-1', 'col-span-2', 'place-content-center'],
-  // Agent
-  // chatOpen: false
-  // layout: Column 1 / Row 1 / Column-Span 2 / Row-Span 3
-  // align: x-center y-center
   agentChatClosed: ['col-start-1 row-start-1', 'col-span-2 row-span-3', 'place-content-center'],
-  // Second tile
-  // chatOpen: true,
-  // hasSecondTile: true
-  // layout: Column 2 / Row 1
-  // align: x-start y-center
   secondTileChatOpen: ['col-start-2 row-start-1', 'self-center justify-self-start'],
-  // Second tile
-  // chatOpen: false,
-  // hasSecondTile: false
-  // layout: Column 2 / Row 2
-  // align: x-end y-end
   secondTileChatClosed: ['col-start-2 row-start-3', 'place-content-end'],
 };
 
@@ -93,6 +73,9 @@ export function TileLayout({
   audioVisualizerWaveLineWidth,
 }: TileLayoutProps) {
   const { videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
+  const { state: agentState } = useAgent();
   const [screenShareTrack] = useTracks([Track.Source.ScreenShare]);
   const cameraTrack: TrackReference | undefined = useLocalTrackRef(Track.Source.Camera);
 
@@ -105,8 +88,17 @@ export function TileLayout({
   const videoWidth = agentVideoTrack?.publication.dimensions?.width ?? 0;
   const videoHeight = agentVideoTrack?.publication.dimensions?.height ?? 0;
 
+  const currentAgentState: AgentState =
+    agentState === 'speaking'
+      ? 'speaking'
+      : agentState === 'listening' || agentState === 'thinking'
+      ? 'listening'
+      : agentState === 'connecting' || agentState === 'initializing'
+      ? 'connecting'
+      : 'ready';
+
   return (
-    <div className="absolute inset-x-0 top-8 bottom-32 z-50 md:top-12 md:bottom-40">
+    <div className="absolute inset-x-0 top-8 bottom-32 z-40 md:top-12 md:bottom-40">
       <div className="relative mx-auto h-full max-w-2xl px-4 md:px-0">
         <div className={cn(tileViewClassNames.grid)}>
           {/* Agent */}
@@ -118,45 +110,47 @@ export function TileLayout({
               chatOpen && !hasSecondTile && tileViewClassNames.agentChatOpenWithoutSecondTile,
             ])}
           >
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="wait">
               {!isAvatar && (
-                // Audio Agent
                 <motion.div
-                  key="agent"
+                  key={isUserSpeaking ? 'user-waveform' : 'robot-avatar'}
                   layoutId="agent"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
                   transition={{
                     ...ANIMATION_TRANSITION,
                     delay: animationDelay,
                   }}
-                  className={cn('relative aspect-square h-[90px]')}
+                  className="flex items-center justify-center"
                 >
-                  <AudioVisualizer
-                    key="audio-visualizer"
-                    initial={{ scale: 1 }}
-                    animate={{ scale: chatOpen ? 0.2 : 1 }}
-                    transition={{
-                      ...ANIMATION_TRANSITION,
-                      delay: animationDelay,
-                    }}
-                    audioVisualizerType={audioVisualizerType}
-                    audioVisualizerColor={audioVisualizerColor}
-                    audioVisualizerColorShift={audioVisualizerColorShift}
-                    audioVisualizerBarCount={audioVisualizerBarCount}
-                    audioVisualizerRadialBarCount={audioVisualizerRadialBarCount}
-                    audioVisualizerRadialRadius={audioVisualizerRadialRadius}
-                    audioVisualizerGridRowCount={audioVisualizerGridRowCount}
-                    audioVisualizerGridColumnCount={audioVisualizerGridColumnCount}
-                    audioVisualizerWaveLineWidth={audioVisualizerWaveLineWidth}
-                    isChatOpen={chatOpen}
-                    className={cn(
-                      'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-                      'bg-background rounded-[50px] border border-transparent transition-[border,drop-shadow]',
-                      chatOpen && 'border-input shadow-2xl/10 delay-200'
-                    )}
-                    style={{ color: audioVisualizerColor }}
-                  />
+                  {isUserSpeaking ? (
+                    // Waveform visualizer when user is speaking
+                    <AudioVisualizer
+                      key="audio-waveform-visualizer"
+                      initial={{ scale: 1 }}
+                      animate={{ scale: chatOpen ? 0.4 : 1 }}
+                      transition={{
+                        ...ANIMATION_TRANSITION,
+                        delay: animationDelay,
+                      }}
+                      audioVisualizerType="wave"
+                      audioVisualizerColor={audioVisualizerColor || '#2563eb'}
+                      audioVisualizerColorShift={audioVisualizerColorShift}
+                      audioVisualizerWaveLineWidth={audioVisualizerWaveLineWidth || 4}
+                      isChatOpen={chatOpen}
+                      className={cn(
+                        'size-[280px] md:size-[380px]',
+                        'rounded-[50px] transition-all'
+                      )}
+                      style={{ color: audioVisualizerColor || '#2563eb' }}
+                    />
+                  ) : (
+                    // Robot Avatar by default instead of white dots
+                    <div className={cn('transition-all duration-300', chatOpen && 'scale-75')}>
+                      <DisasterAvatar state={currentAgentState} size="lg" />
+                    </div>
+                  )}
                 </motion.div>
               )}
 

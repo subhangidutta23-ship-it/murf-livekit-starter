@@ -33,9 +33,10 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'Murf AI',
-  pageTitle: 'Voice Agent Starter',
-  pageDescription: 'A voice agent powered by Murf Falcon — the fastest TTS API',
+  companyName: 'Disaster Relief AI',
+  pageTitle: 'Disaster Response & Relief Assistant',
+  pageDescription:
+    'Real-time flood & drought alerting, relief coordination, and welfare check-ins powered by Murf Voice AI',
 
   supportsChatInput: true,
   supportsVideoInput: true,

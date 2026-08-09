@@ -11,6 +11,8 @@ import {
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { cn } from '@/lib/shadcn/utils';
 import { TileLayout } from './tile-view';
+import { AgentStateIndicator, type AgentState } from '@/components/app/agent-state-indicator';
+import { SpeakerVisualizer } from '@/components/app/speaker-visualizer';
 
 const MotionMessage = motion.create(Shimmer);
 
@@ -181,6 +183,15 @@ export function AgentSessionView_01({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
 
+  const currentAgentState: AgentState =
+    agentState === 'speaking'
+      ? 'speaking'
+      : agentState === 'listening' || agentState === 'thinking'
+      ? 'listening'
+      : agentState === 'connecting' || agentState === 'initializing'
+      ? 'connecting'
+      : 'listening';
+
   const controls: AgentControlBarControls = {
     leave: true,
     microphone: true,
@@ -205,6 +216,15 @@ export function AgentSessionView_01({
       {...props}
     >
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
+
+      {/* Top Disaster Response Status Banner */}
+      <div className="absolute top-4 inset-x-0 z-30 flex flex-col items-center justify-center pointer-events-none px-4">
+        <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-white/90 px-3.5 py-1 text-[11px] font-mono font-bold tracking-wider text-sky-900 uppercase shadow-md backdrop-blur-md">
+          <span>DISASTER RESPONSE • ACTIVE VOICE SESSION</span>
+        </div>
+        <AgentStateIndicator state={currentAgentState} />
+      </div>
+
       {/* transcript */}
 
       <div className="absolute top-0 bottom-[135px] flex w-full flex-col md:bottom-[170px]">
