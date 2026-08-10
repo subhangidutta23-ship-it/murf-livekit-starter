@@ -26,9 +26,11 @@ export const CallEndedView = React.forwardRef<HTMLDivElement, CallEndedViewProps
         <div className="relative z-10 w-full max-w-lg flex flex-col items-center text-center">
           
           {/* Header Tag */}
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sky-300 bg-white/90 px-4 py-1.5 text-xs font-mono font-bold tracking-widest text-sky-900 uppercase shadow-md">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            DISASTER RESPONSE • SESSION COMPLETED
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400 bg-white/95 dark:bg-slate-900/95 px-4 py-1.5 text-xs font-mono font-bold tracking-widest text-slate-800 dark:text-slate-200 uppercase shadow-lg backdrop-blur-md">
+            <span>🇮🇳</span>
+            <span className="text-emerald-700 dark:text-emerald-400">VOICE FOR BHARAT</span>
+            <span className="text-slate-300">•</span>
+            <span>SESSION LOGGED</span>
           </div>
 
           {/* Avatar Graphic */}
@@ -40,17 +42,17 @@ export const CallEndedView = React.forwardRef<HTMLDivElement, CallEndedViewProps
           <AgentStateIndicator state="ended" />
 
           {/* Emergency Summary Notice Box */}
-          <div className="my-6 w-full rounded-2xl border border-slate-200 bg-white/90 p-5 text-left shadow-xl backdrop-blur-md space-y-3">
-            <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+          <div className="my-6 w-full rounded-2xl border border-amber-200/80 bg-white/95 dark:bg-slate-900/95 p-5 text-left shadow-xl backdrop-blur-md space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400">
               <HeartHandshake size={18} />
-              <span>Welfare & Relief Confirmation</span>
+              <span>Welfare & Relief Confirmation (जन कल्याण रिपोर्ट)</span>
             </div>
-            <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-medium">
-              Your disaster report, flood/drought update, or welfare check-in has been logged with the Disaster Response Center. Stay tuned to local official broadcasts for immediate emergency instructions.
+            <p className="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+              Your disaster report, flood/drought update, or welfare check-in has been logged with the National Disaster Response Center. Stay tuned to official Indian radio broadcasts & SMS alerts.
             </p>
-            <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-600">
-              <span className="flex items-center gap-1"><Info size={14} className="text-sky-600" /> Emergency Hotline: 911 / 112</span>
-              <span>24/7 Relief Active</span>
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <span className="flex items-center gap-1"><Info size={14} className="text-amber-600" /> Helpline: 112 / 1078 / 108</span>
+              <span>24/7 NDRF Relay Active</span>
             </div>
           </div>
 
