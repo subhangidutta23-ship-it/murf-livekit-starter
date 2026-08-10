@@ -11,6 +11,9 @@ import {
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { cn } from '@/lib/shadcn/utils';
 import { TileLayout } from './tile-view';
+import { AgentStateIndicator, type AgentState } from '@/components/app/agent-state-indicator';
+import { SpeakerVisualizer } from '@/components/app/speaker-visualizer';
+import { Radio, MessageSquareText } from 'lucide-react';
 
 const MotionMessage = motion.create(Shimmer);
 
@@ -181,6 +184,15 @@ export function AgentSessionView_01({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
 
+  const currentAgentState: AgentState =
+    agentState === 'speaking'
+      ? 'speaking'
+      : agentState === 'listening' || agentState === 'thinking'
+      ? 'listening'
+      : agentState === 'connecting' || agentState === 'initializing'
+      ? 'connecting'
+      : 'listening';
+
   const controls: AgentControlBarControls = {
     leave: true,
     microphone: true,
@@ -190,13 +202,18 @@ export function AgentSessionView_01({
   };
 
   useEffect(() => {
-    const lastMessage = messages.at(-1);
-    const lastMessageIsLocal = lastMessage?.from?.isLocal === true;
-
-    if (scrollAreaRef.current && lastMessageIsLocal) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    // Automatically open split-screen chat when conversation begins
+    if (messages.length > 0 && !chatOpen) {
+      setChatOpen(true);
     }
-  }, [messages]);
+
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [messages, chatOpen]);
 
   return (
     <section
@@ -204,39 +221,86 @@ export function AgentSessionView_01({
       className={cn('bg-background relative z-10 h-full w-full overflow-hidden', className)}
       {...props}
     >
-      <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
-      {/* transcript */}
+      <Fade top className="absolute inset-x-4 top-0 z-10 h-24 pointer-events-none" />
 
-      <div className="absolute top-0 bottom-[135px] flex w-full flex-col md:bottom-[170px]">
+      {/* Top Disaster Response Status Pill */}
+      <div className="absolute top-2.5 inset-x-0 z-30 flex items-center justify-center pointer-events-none px-4">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-300/80 bg-white/90 dark:bg-slate-900/90 px-3.5 py-1 text-[11px] font-mono font-bold tracking-wider text-sky-900 dark:text-sky-200 uppercase shadow-sm backdrop-blur-md">
+          <span>DISASTER RESPONSE • VOICE COMMAND ACTIVE</span>
+        </div>
+      </div>
+
+      {/* Split Screen Container: Left Side Agent Console, Right Side Live Transcript */}
+      <div className="absolute inset-x-3 md:inset-x-8 top-12 bottom-24 md:top-14 md:bottom-28 z-40 max-w-7xl mx-auto h-[calc(100%-100px)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
+        
+        {/* LEFT COLUMN: Agent Robot Console & Audio Visualizer */}
+        <div
+          className={cn(
+            'relative flex flex-col items-center justify-center transition-all duration-300 h-full',
+            chatOpen ? 'w-full md:w-1/2' : 'w-full'
+          )}
+        >
+          <div
+            className={cn(
+              'relative w-full h-full flex flex-col items-center justify-start rounded-3xl p-5 md:p-8 transition-all duration-300 overflow-hidden',
+              chatOpen && 'bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-sky-200/60 dark:border-sky-800/60 shadow-xl'
+            )}
+          >
+            {/* Agent State Indicator neatly contained at top with clear margin */}
+            <div className="mb-6 md:mb-8 flex flex-col items-center justify-center shrink-0 z-10">
+              <AgentStateIndicator state={currentAgentState} />
+            </div>
+
+            {/* Sentinel Robot Avatar dragged down with generous clearance */}
+            <div className="mt-4 md:mt-6 w-full flex-1 flex items-center justify-center">
+              <TileLayout
+                chatOpen={chatOpen}
+                audioVisualizerType={audioVisualizerType}
+                audioVisualizerColor={audioVisualizerColor}
+                audioVisualizerColorShift={audioVisualizerColorShift}
+                audioVisualizerBarCount={audioVisualizerBarCount}
+                audioVisualizerRadialBarCount={audioVisualizerRadialBarCount}
+                audioVisualizerRadialRadius={audioVisualizerRadialRadius}
+                audioVisualizerGridRowCount={audioVisualizerGridRowCount}
+                audioVisualizerGridColumnCount={audioVisualizerGridColumnCount}
+                audioVisualizerWaveLineWidth={audioVisualizerWaveLineWidth}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Real-Time Conversation Transcript Stream */}
         <AnimatePresence>
           {chatOpen && (
             <motion.div
               {...CHAT_MOTION_PROPS}
-              className="flex h-full w-full flex-col gap-4 space-y-3 transition-opacity duration-300 ease-out"
+              className="w-full md:w-1/2 h-full flex flex-col justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-amber-300/80 dark:border-amber-700/80 rounded-3xl p-4 md:p-5 shadow-2xl overflow-hidden transition-all duration-300"
             >
-              <AgentChatTranscript
-                agentState={agentState}
-                messages={messages}
-                className="mx-auto w-full max-w-2xl [&_.is-user>div]:rounded-[22px] [&>div>div]:px-4 [&>div>div]:pt-40 md:[&>div>div]:px-6"
-              />
+              {/* Transcript Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  <Radio className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <span>LIVE CONVERSATION LOG</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-500 uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                  {messages.length} Messages
+                </span>
+              </div>
+
+              {/* Scrollable Conversation Stream with Bottom Clearance */}
+              <div ref={scrollAreaRef} className="flex-1 overflow-y-auto py-3 pr-1 pb-10">
+                <AgentChatTranscript
+                  agentState={agentState}
+                  messages={messages}
+                  className="w-full pb-8 [&_.is-user>div]:bg-amber-500 [&_.is-user>div]:text-white [&_.is-user>div]:rounded-2xl [&_.is-user>div]:p-3 [&_.is-assistant>div]:bg-slate-100 [&_.is-assistant>div]:dark:bg-slate-800 [&_.is-assistant>div]:rounded-2xl [&_.is-assistant>div]:p-3 [&>div>div]:px-2 [&>div>div]:pt-2"
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      {/* Tile layout */}
-      <TileLayout
-        chatOpen={chatOpen}
-        audioVisualizerType={audioVisualizerType}
-        audioVisualizerColor={audioVisualizerColor}
-        audioVisualizerColorShift={audioVisualizerColorShift}
-        audioVisualizerBarCount={audioVisualizerBarCount}
-        audioVisualizerRadialBarCount={audioVisualizerRadialBarCount}
-        audioVisualizerRadialRadius={audioVisualizerRadialRadius}
-        audioVisualizerGridRowCount={audioVisualizerGridRowCount}
-        audioVisualizerGridColumnCount={audioVisualizerGridColumnCount}
-        audioVisualizerWaveLineWidth={audioVisualizerWaveLineWidth}
-      />
-      {/* Bottom */}
+
+      {/* Bottom Control Bar */}
       <motion.div
         {...BOTTOM_VIEW_MOTION_PROPS}
         className="absolute inset-x-3 bottom-0 z-50 md:inset-x-12"
@@ -250,15 +314,15 @@ export function AgentSessionView_01({
                 duration={2}
                 aria-hidden={messages.length > 0}
                 {...SHIMMER_MOTION_PROPS}
-                className="pointer-events-none mx-auto block w-full max-w-2xl pb-4 text-center text-sm font-semibold"
+                className="pointer-events-none mx-auto block w-full max-w-2xl pb-4 text-center text-sm font-semibold text-slate-700 dark:text-slate-300"
               >
                 {preConnectMessage}
               </MotionMessage>
             )}
           </AnimatePresence>
         )}
-        <div className="bg-background relative mx-auto max-w-2xl pb-3 md:pb-12">
-          <Fade bottom className="absolute inset-x-0 top-0 h-4 -translate-y-full" />
+        <div className="bg-background relative mx-auto max-w-2xl pb-3 md:pb-8">
+          <Fade bottom className="absolute inset-x-0 top-0 h-4 -translate-y-full pointer-events-none" />
           <AgentControlBar
             variant="livekit"
             controls={controls}
