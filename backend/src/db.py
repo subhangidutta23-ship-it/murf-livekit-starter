@@ -138,8 +138,8 @@ def save_caller(
     clean_name = (name or "").strip()
     clean_name_id = clean_name.lower().replace(" ", "_")
 
-    # Override static dummy IDs (e.g. "usr-999", "string", "user") with caller's actual name ID
-    dummy_ids = ("user", "string", "default", "none", "usr-999", "usr_999", "suresh")
+    # Override static generic place-holder IDs (e.g. "string", "user", "anonymous") with caller's actual name ID
+    dummy_ids = ("user", "string", "default", "none", "anonymous")
     if not user_id or user_id.strip().lower() in dummy_ids or user_id.startswith("voice_assistant_user_"):
         if clean_name_id:
             user_id = clean_name_id
