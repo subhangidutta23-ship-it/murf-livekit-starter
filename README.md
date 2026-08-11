@@ -135,6 +135,14 @@ pnpm dev
 
 Open `http://localhost:3000` to interact with the Voice for Bharat Disaster Response Command Center.
 
+### 4. Trigger Outbound Emergency Calls (Optional)
+
+You can dispatch automated emergency outbound calls using:
+
+```bash
+uv run python src/outbound_call.py
+```
+
 ---
 
 ## 🧪 Testing & Evaluation Suite
@@ -168,10 +176,13 @@ tests/test_disaster_tools.py .......                                    [100%]
 ```
 murf-livekit-starter/
 ├── backend/
+│   ├── caller_data.db        # SQLite database for persistent caller profiles & memory
 │   ├── src/
-│   │   ├── agent.py          # Sentinel Agent entrypoint, system prompt, and function tools
+│   │   ├── agent.py          # Sentinel Agent entrypoint and LiveKit session runner
 │   │   ├── db.py             # SQLite caller persistence and privacy consent manager
-│   │   └── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
+│   │   ├── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
+│   │   ├── outbound_call.py  # Outbound emergency dispatch script
+│   │   └── prompt.py         # System prompt, Sentinel identity, consent rules & greeting flow
 │   └── tests/
 │       ├── test_agent.py     # LLM-as-judge evaluation suite
 │       ├── test_db.py        # Database & permission unit tests
