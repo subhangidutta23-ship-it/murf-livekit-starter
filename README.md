@@ -1,192 +1,283 @@
-<a href="https://livekit.io/">
-  <img src="https://raw.githubusercontent.com/livekit/agents/main/docs/assets/livekit-agents-header.png" alt="Sentinel Voice AI Banner" width="100%" />
-</a>
+# Voice Agent Starter — Powered by Murf Falcon
 
-# 🚨 Sentinel — Emergency Disaster Response Voice AI Agent (Voice for Bharat)
+Build a production voice AI agent in 5 minutes. Powered by the fastest TTS on the market - swap the system prompt to build anything from customer support to language tutors.
 
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github)](https://github.com/)
-[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![LiveKit](https://img.shields.io/badge/LiveKit-Agents-000000?style=for-the-badge&logo=livekit)](https://livekit.io)
-[![Murf AI](https://img.shields.io/badge/Murf_TTS-Falcon_Stream-0055FF?style=for-the-badge)](https://murf.ai)
-[![Gemini](https://img.shields.io/badge/Google-Gemini_3.5_Flash-8E75FF?style=for-the-badge&logo=google)](https://aistudio.google.com)
-[![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3_Multilingual-13EF95?style=for-the-badge)](https://deepgram.com)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
-
-**Sentinel** is an emergency Disaster Response Voice AI Assistant operating on behalf of the National Emergency Management & Disaster Relief Command under the **Voice for Bharat** theme. Built with LiveKit Agents, Murf Falcon TTS, Deepgram Nova-3 Multilingual STT, and Google Gemini LLM, Sentinel provides real-time disaster alerts, spatial shelter navigation with capacity tracking, persistent caller memory, and out-loud network failure resilience.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming) [![LiveKit](https://img.shields.io/badge/Transport-LiveKit-002cf2)](https://docs.livekit.io) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
 ---
 
-## 🌟 Key Features
+## Why Murf Falcon
 
-- **🇮🇳 Voice for Bharat Emergency Theme**: Saffron, white, and emerald ambient glows with 24-spoke Ashoka Chakra watermark, top emergency helplines (`112 | 1078 | 108`), and SSR hydration safety.
-- **📱 Side-by-Side Split-Screen Session**: Agent Robot Console on Left 50% column and Real-Time Live Conversation Log (`LIVE CONVERSATION LOG`) on Right 50% column with zero text overlaps.
-- **🗣️ All-Indian Native Languages Support**: Deepgram `language="multi"` STT with automatic script detection (Hindi/Devanagari, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Urdu, and English) and dynamic LLM native language responses.
-- **🔒 Persistent Caller Memory & Direct Recognition**: Automatic SQLite returning caller lookup. Once caller name and location are saved with explicit privacy consent (`permission_granted=True`), Sentinel AI **never** asks for name or location again, immediately addressing them by name and confirming saved location.
-- **🌊 Real-Time District Flood & Weather Alerts**: Live river discharge monitoring ($m^3/s$), precipitation rates, and severe weather advisories powered by Open-Meteo Flood & Weather APIs.
-- **🏥 Spatial Emergency Shelter Search**: Nearest shelter distance computation using the Haversine formula, total bed capacity, occupancy tracking, and real-time available capacity calculation.
-- **📢 Out-Loud Network Failure Resilience**: Strict 3.0-second network timeout protection. Spoken fallback alerts with cached offline emergency protocols during degraded connectivity or offline status.
-- **🕒 Explicit Data Timestamping**: Every alert and shelter status update states exact observation date & time in spoken English words (`August tenth, twenty twenty-six at sixteen hours UTC`) so callers know data freshness.
-- **🗣️ Spoken Number Formatting**: Automatically converts numeric outputs into spoken words (e.g. `2.1` $\to$ `two point one`, `500` $\to$ `five hundred`) for natural TTS streaming.
+- **55ms model latency** - fastest production TTS
+- **130ms time-to-first-audio** across 10+ global regions
+- **$0.01/1000 characters** - up to 10x cheaper than alternatives
+- **150+ voices** across 35+ languages
+- **99.38% pronunciation accuracy**
 
 ---
 
-## 🏗️ Architecture & Pipeline
+## Architecture
 
-```
-┌──────────────┐     ┌───────────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  User Audio  │ ──> │   Deepgram STT    │ ──> │  Gemini LLM  │ ──> │ Murf Falcon  │ ──> │ User Hears   │
-│  Input (RTC) │     │ (Nova-3 Multi)   │     │ Function Call│     │ TTS Audio    │     │ Response     │
-└──────────────┘     └───────────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-                                                       │
-                                                       ▼
-                                           ┌───────────────────────┐
-                                           │   Disaster Data & DB  │
-                                           │  • Open-Meteo Flood   │
-                                           │  • Open-Meteo Weather │
-                                           │  • Shelter Haversine  │
-                                           │  • SQLite Persistence │
-                                           └───────────────────────┘
+```mermaid
+flowchart LR
+    A[🎙️ User speaks] -->|audio| B[Deepgram STT]
+    B -->|text| C[LLM]
+    C -->|response text| D[Murf Falcon TTS]
+    D -->|audio| E[LiveKit]
+    E -->|stream| F[🔊 User hears]
+
+    style A fill:#444441,stroke:#888780,color:#fff
+    style B fill:#185FA5,stroke:#85B7EB,color:#fff
+    style C fill:#534AB7,stroke:#AFA9EC,color:#fff
+    style D fill:#0F6E56,stroke:#5DCAA5,color:#fff
+    style E fill:#D85A30,stroke:#F0997B,color:#fff
+    style F fill:#444441,stroke:#888780,color:#fff
 ```
 
 ---
 
-## 🛠️ Function Tools API
+## Quickstart
 
-| Function Tool | Purpose | Real Data Source / Computation | Timeout & Out-Loud Fallback Path |
-|---|---|---|---|
-| `get_disaster_alerts` | District flood & severe weather status | Open-Meteo Geocoding, Forecast, & Flood APIs ($m^3/s$ discharge, precip, wind) | 3.0s timeout $\to$ Out-loud offline emergency alert with timestamp |
-| `find_relief_centers` | Nearest shelter lookup & bed capacity | Structured shelter dataset + Haversine spatial distance math ($d = 2R \arcsin(\dots)$) | 3.0s timeout $\to$ Out-loud offline shelter directory with capacity & facilities |
-| `lookup_caller` | Memory check for returning callers | SQLite `callers` database table | Returns caller facts & last check-in |
-| `save_caller_data` | Store caller facts & location | SQLite `callers` database table | Strict explicit consent check (`permission_granted=True`) |
-| `forget_caller` | Permanent data wipe | SQLite deletion | Permanent record removal from database |
-| `perform_welfare_check_in` | Log safety check-in | SQLite caller record update | Logs safety status & location |
+### Prerequisites
 
----
+- **Python** 3.10+
+- **[uv](https://docs.astral.sh/uv/)** - fast Python package manager
+  ```bash
+  # macOS/Linux
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # Windows (PowerShell)
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- **Node.js** 18+
+- **pnpm** — fast Node package manager
+  ```bash
+  npm install -g pnpm
+  ```
+- A [LiveKit](https://cloud.livekit.io/) project (free tier available)
 
-## ⚠️ Safety & Design Rules
+### Step 1: Clone the repo
 
-> [!IMPORTANT]
-> **Strict Consent Privacy Rule**: Sentinel NEVER saves personal caller information (name, location, household size) without asking for explicit permission and getting positive caller consent (`permission_granted=True`).
+```bash
+git clone https://github.com/murf-ai/murf-livekit-starter.git
+cd murf-livekit-starter
+```
 
-> [!IMPORTANT]
-> **Returning Caller Memory Mandate**: Once a caller's name and location are saved in the database, Sentinel NEVER asks for name or location again. It directly greets them by name and confirms their saved location.
+### Step 2: Set up environment variables
 
-> [!WARNING]
-> **Out-Loud Failure Resilience**: During severe storm conditions or network timeouts (3-second limit), Sentinel speaks an offline emergency fallback status out loud instead of going silent or hallucinating live numbers.
+Create `.env.local` in both `backend/` and `frontend/` (copy from `.env.example` in each). You need:
 
-> [!NOTE]
-> **Number Spoken Form Rule**: All numeric values in tool outputs are converted to English words (e.g. `2.1` $\to$ `two point one`) so the TTS voice engine speaks naturally without reading raw digits.
+| Variable                               | Where to get it                                        | Required |
+| -------------------------------------- | ------------------------------------------------------ | -------- |
+| `LIVEKIT_URL`                          | LiveKit Cloud dashboard                                | Yes      |
+| `LIVEKIT_API_KEY`                      | LiveKit Cloud dashboard                                | Yes      |
+| `LIVEKIT_API_SECRET`                   | LiveKit Cloud dashboard                                | Yes      |
+| `MURF_API_KEY`                         | [murf.ai/api/dashboard](https://murf.ai/api/dashboard) | Yes      |
+| `DEEPGRAM_API_KEY`                     | [deepgram.com](https://deepgram.com)                   | Yes      |
+| `GOOGLE_API_KEY` (or `OPENAI_API_KEY`) | Depends on LLM choice                                  | Yes      |
 
----
-
-## 💻 Tech Stack
-
-- **Framework**: [LiveKit Agents SDK (Python)](https://github.com/livekit/agents) & Next.js Frontend
-- **Speech-to-Text (STT)**: Deepgram Nova-3 Multilingual (`nova-3`, `language="multi"`)
-- **Large Language Model (LLM)**: Google Gemini 3.5 Flash (`gemini-3.5-flash-lite`)
-- **Text-to-Speech (TTS)**: Murf Falcon Streaming TTS (`voice="Anisha"`, `locale="hi-IN"`)
-- **Voice Activity Detection (VAD)**: Silero VAD
-- **Turn Detection**: LiveKit Multilingual Turn Detector
-- **Domain APIs**: Open-Meteo Flood API, Weather Forecast API, Geocoding API
-- **Persistence Store**: SQLite 3
-
----
-
-## 🚀 Dev Setup & Quickstart
-
-### 1. Prerequisites & Environment Setup
-
-Clone the repository and install backend dependencies using `uv`:
+### Step 3: Install backend dependencies
 
 ```bash
 cd backend
 uv sync
+uv run python src/agent.py download-files
 ```
 
-Configure your API credentials by creating a `.env.local` file:
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in your environment variables in `.env.local`:
-
-```env
-LIVEKIT_URL=wss://your-livekit-project.livekit.cloud
-LIVEKIT_API_KEY=your_livekit_api_key
-LIVEKIT_API_SECRET=your_livekit_api_secret
-MURF_API_KEY=your_murf_api_key
-DEEPGRAM_API_KEY=your_deepgram_api_key
-GOOGLE_API_KEY=your_google_gemini_api_key
-```
-
-### 2. Run the Agent Server
-
-```bash
-uv run python src/agent.py dev
-```
-
-### 3. Run the Frontend App
+### Step 4: Install frontend dependencies
 
 ```bash
 cd frontend
-pnpm dev
+pnpm install
 ```
 
-Open `http://localhost:3000` to interact with the Voice for Bharat Disaster Response Command Center.
+### Step 5: Run it
 
----
-
-## 🧪 Testing & Evaluation Suite
-
-Sentinel includes a full unit test and evaluation suite built on `pytest` and LiveKit Agents testing framework:
+**Option A - All-in-one (from repo root):**
 
 ```bash
-uv run pytest
+# macOS/Linux
+chmod +x start_app.sh
+./start_app.sh
+
+# Windows (PowerShell)
+.\start_app.ps1
 ```
 
-### Test Coverage Summary
+**Option B - Separate terminals:**
 
-- `tests/test_disaster_tools.py`: Tests live Open-Meteo data fetching, spatial distance math, capacity calculations, explicit timestamping, and out-loud timeout error handling.
-- `tests/test_db.py`: Tests caller SQLite persistence, explicit privacy consent enforcement, returning caller lookups, and data wiping.
-- `tests/test_agent.py`: LLM-as-judge evaluations verifying agent friendliness, grounding, and harmful request refusals.
+```bash
+# Terminal 1 — LiveKit Server
+livekit-server --dev
 
+# Terminal 2 — Backend agent
+cd backend && uv run python src/agent.py dev
+
+# Terminal 3 — Frontend
+cd frontend && pnpm dev
 ```
-collected 15 items
 
-tests/test_agent.py ...                                                 [ 20%]
-tests/test_db.py .....                                                  [ 53%]
-tests/test_disaster_tools.py .......                                    [100%]
+Then open **http://localhost:3000** in your browser.
 
-============================= 15 passed in 40.2s =============================
-```
+You should now see the voice agent UI. Click **Start talking**, allow microphone access, and speak — the agent will respond with Murf Falcon TTS. Ensure your backend and (if using Option B) LiveKit server are running.
 
 ---
 
-## 📁 Project Structure
+## Deploy
+
+Want to deploy this beyond localhost? You'll need to deploy **two services**: the backend agent and the frontend. Both must use the same LiveKit project.
+
+> This is a two-service app — the backend agent and the frontend UI deploy separately. You'll need both running and connected to the same LiveKit project.
+
+### Backend (Python agent) — Deploy to Railway
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/tIVCF1?referralCode=cNjn2P&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+Set these environment variables in Railway:
+
+- `MURF_API_KEY`
+- `DEEPGRAM_API_KEY`
+- `GOOGLE_API_KEY` or `OPENAI_API_KEY`
+- `LIVEKIT_URL`
+- `LIVEKIT_API_KEY`
+- `LIVEKIT_API_SECRET`
+
+The backend runs as a long-lived Python process that connects to LiveKit as an agent. Railway handles this well.
+
+### Frontend (Next.js) — Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/murf-ai/murf-livekit-starter&root-directory=frontend&env=LIVEKIT_URL,LIVEKIT_API_KEY,LIVEKIT_API_SECRET&project-name=murf-voice-agent&repository-name=murf-voice-agent)
+
+Set these environment variables in Vercel:
+
+- `LIVEKIT_URL`
+- `LIVEKIT_API_KEY`
+- `LIVEKIT_API_SECRET`
+- `AGENT_NAME` (optional — for explicit agent dispatch)
+
+The frontend is a standard Next.js app. Point it at the same LiveKit instance your backend agent is connected to.
+
+### Connecting them
+
+The frontend and backend don't call each other directly — they both connect to **LiveKit**, which handles the real-time audio transport.
+
+1. Use the **same** `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` on both Railway and Vercel
+2. Set `AGENT_NAME=my-agent` on Vercel — this matches the `agent_name="my-agent"` registered in `backend/src/agent.py`
+3. Verify: Railway logs should show the agent connected to LiveKit. Open your Vercel URL, click **Start talking** — the agent should respond
+
+If the agent doesn't connect, double-check that both services point to the same LiveKit project and that the backend is running (check Railway logs).
+
+---
+
+## Change the Use Case
+
+The default system prompt makes this a **customer support agent**. You can change the agent’s behavior by editing the prompt.
+
+**Where the prompt lives:** `backend/src/agent.py`- the `SYSTEM_PROMPT` constant (near the top of the file, after the imports). Change that string to change what your voice agent does.
+
+### Example prompts (copy-paste)
+
+**Customer Support (default):**
+
+```
+You are a friendly and efficient customer support agent for a tech company. Help users with account issues, billing questions, and product troubleshooting. Be concise, empathetic, and solution-oriented. If you don't know something, say so honestly and offer to escalate.
+```
+
+**Language Tutor:**
+
+```
+You are a patient and encouraging language tutor helping the user practice conversational Spanish. Speak primarily in Spanish but switch to English to explain grammar or vocabulary when needed. Correct mistakes gently and suggest better phrasing. Keep conversations natural and fun.
+```
+
+**AI Receptionist:**
+
+```
+You are a professional receptionist for a medical clinic. Help callers schedule appointments, answer questions about office hours and services, and take messages for doctors. Be warm but efficient. Ask for the caller's name and reason for calling upfront.
+```
+
+See the Configuration section below for voice, STT, and LLM options.
+
+---
+
+## Configuration
+
+### Murf voice
+
+Edit the `tts=murf.TTS(...)` call in `backend/src/agent.py`. Set the `voice` argument to any Murf voice ID. Examples:
+
+- `Anisha` — Indian English (female, default in this starter)
+- `Pooja` — Indian English (female)
+- `Samar` — Indian English (male)
+- `Amara` — US English (female)
+- `Gordon` — US English (male)
+- `Hazel` — UK English (female)
+- `Bertie` — UK English (male)
+
+Browse all voices: [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library).
+
+### STT provider
+
+STT is configured in `backend/src/agent.py` in the `AgentSession(stt=...)` call. The default is Deepgram (`deepgram.STT(model="nova-3")`). You can swap to another LiveKit-compatible STT plugin if needed.
+
+### LLM (Gemini vs OpenAI)
+
+- **Gemini (default):** Set `GOOGLE_API_KEY` and use `llm=google.LLM(model="gemini-3.5-flash-lite")` in `agent.py`.
+- **OpenAI:** Set `OPENAI_API_KEY`, add the OpenAI plugin, and use the corresponding `llm=openai.LLM(...)` in `agent.py`.
+
+### Audio format
+
+Murf Falcon and LiveKit handle audio format internally. For advanced options, see [Murf API docs](https://murf.ai/api/docs) and [LiveKit docs](https://docs.livekit.io).
+
+---
+
+## Project Structure
 
 ```
 murf-livekit-starter/
-├── backend/
+├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
+│   ├── caller_data.db       # SQLite database for persistent caller profiles & memory
 │   ├── src/
-│   │   ├── agent.py          # Sentinel Agent entrypoint, system prompt, and function tools
-│   │   ├── db.py             # SQLite caller persistence and privacy consent manager
-│   │   └── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
-│   └── tests/
-│       ├── test_agent.py     # LLM-as-judge evaluation suite
-│       ├── test_db.py        # Database & permission unit tests
-│       └── test_disaster_tools.py # Disaster tools & network failure unit tests
-├── frontend/
-│   ├── app/                  # Next.js app pages and layout
-│   └── components/
-│       ├── app/              # WelcomeView, BharatBackground, DisasterTicker
-│       └── agents-ui/        # Side-by-side AgentSessionBlock & Live Conversation Log
-├── pyproject.toml            # Python package dependencies (uv)
-└── README.md                 # Project documentation
+│   │   ├── agent.py         # Agent entrypoint & LiveKit pipeline runner
+│   │   ├── db.py            # SQLite caller persistence & consent manager
+│   │   ├── disaster_data.py # Disaster data, weather & shelter tools
+│   │   ├── outbound_call.py # Outbound emergency call dispatch script
+│   │   └── prompt.py        # System prompt, Sentinel identity & consent flow
+│   ├── tests/               # Agent tests
+│   ├── .env.example         # Backend env template
+│   ├── pyproject.toml       # Python deps (uv)
+│   └── railway.toml         # Railway deploy config
+├── frontend/                # Next.js UI for voice sessions
+│   ├── app/
+│   │   ├── page.tsx         # Main page
+│   │   └── api/token/       # LiveKit token endpoint (dev)
+│   ├── components/          # UI (agents-ui, app config, theme)
+│   ├── app-config.ts        # Branding, title, button text, accent
+│   ├── .env.example         # Frontend env template
+│   └── package.json         # Node deps (pnpm)
+├── start_app.sh             # Start LiveKit + backend + frontend (macOS/Linux)
+├── start_app.ps1            # Start LiveKit + backend + frontend (Windows)
+├── README.md                # This file
 ```
+
+For deeper documentation on each part, see:
+
+- [Backend Documentation](./backend/README.md) — agent pipeline, voice/LLM/STT configuration, testing, deployment
+- [Frontend Documentation](./frontend/README.md) — UI customization, visualizers, theming, component architecture
 
 ---
 
-## 📄 License
+## Links
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+- [Murf API Docs](https://murf.ai/api/docs)
+- [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library)
+- [LiveKit Docs](https://docs.livekit.io)
+- [Deepgram Docs](https://developers.deepgram.com)
+- [Murf Falcon Benchmarks](https://murf.ai/falcon/benchmarks)
+- [TTS Latency Benchmarker](https://github.com/sahilsgupta/tts-latency-benchmarker) — run your own p50/p95 tests across providers
+- [Murf Discord](https://discord.gg/FbKAy96Sz7)
+- [Murf Startup Incubator](https://murf.ai/api) — 50M free characters for startups
+
+---
+
+## License
+
+MIT
