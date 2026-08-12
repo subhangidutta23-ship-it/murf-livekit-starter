@@ -1,10 +1,23 @@
-import { headers } from 'next/headers';
-import { App } from '@/components/app/app';
-import { getAppConfig } from '@/lib/utils';
+'use client';
 
-export default async function Page() {
-  const hdrs = await headers();
-  const appConfig = await getAppConfig(hdrs);
+import { RoomAudioRenderer, SessionProvider, useSession } from '@livekit/components-react';
+import { TokenSource } from 'livekit-client';
+import { ViewController } from '@/components/app/view-controller';
+import { StartAudioButton } from '@/components/agents-ui/start-audio-button';
+import { APP_CONFIG_DEFAULTS } from '@/app-config';
 
-  return <App appConfig={appConfig} />;
+export default function Page() {
+  const session = useSession(TokenSource.endpoint('/api/token'));
+
+  const appConfig = APP_CONFIG_DEFAULTS;
+
+  return (
+    <SessionProvider session={session}>
+      <ViewController appConfig={appConfig} />
+      <RoomAudioRenderer />
+      <div className="fixed top-4 left-4 z-50 pointer-events-auto">
+        <StartAudioButton label="Click to allow audio playback" />
+      </div>
+    </SessionProvider>
+  );
 }

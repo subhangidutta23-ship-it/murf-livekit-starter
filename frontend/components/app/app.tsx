@@ -48,14 +48,26 @@ export function App({ appConfig }: { appConfig?: any }) {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 uppercase">
-            Active Channel
-          </span>
+        <div className="flex items-center space-x-3">
+          <a
+            href="/escalations"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/40 text-amber-800 dark:text-amber-300 font-mono text-xs font-bold transition-all shadow-sm"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Dispatch Dashboard</span>
+          </a>
+
+          <div className="flex items-center space-x-1.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 uppercase">
+              Active Channel
+            </span>
+          </div>
         </div>
       </header>
 

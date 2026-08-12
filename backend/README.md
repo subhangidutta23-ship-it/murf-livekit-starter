@@ -12,7 +12,7 @@
 [![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3_Multilingual-13EF95?style=for-the-badge)](https://deepgram.com)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-**Sentinel** is an emergency Disaster Response Voice AI Assistant operating on behalf of the National Emergency Management & Disaster Relief Command under the **Voice for Bharat** theme. Built with LiveKit Agents, Murf Falcon TTS, Deepgram Nova-3 Multilingual STT, and Google Gemini LLM, Sentinel provides real-time disaster alerts, spatial shelter navigation with capacity tracking, persistent caller memory, and out-loud network failure resilience.
+**Sentinel** is an emergency Disaster Response Voice AI Assistant operating on behalf of the National Emergency Management & Disaster Relief Command under the **Voice for Bharat** theme. Built with LiveKit Agents, Murf Falcon TTS, Deepgram Nova-3 Multilingual STT, and Google Gemini LLM, Sentinel provides real-time disaster alerts, spatial shelter navigation with capacity tracking, persistent caller memory, human rescue escalation, sensitive PII redaction, request status tracking, and automated resolution callbacks.
 
 ---
 
@@ -22,6 +22,13 @@
 - **📱 Side-by-Side Split-Screen Session**: Agent Robot Console on Left 50% column and Real-Time Live Conversation Log (`LIVE CONVERSATION LOG`) on Right 50% column with zero text overlaps.
 - **🗣️ All-Indian Native Languages Support**: Deepgram `language="multi"` STT with automatic script detection (Hindi/Devanagari, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Urdu, and English) and dynamic LLM native language responses.
 - **🔒 Persistent Caller Memory & Direct Recognition**: Automatic SQLite returning caller lookup. Once caller name and location are saved with explicit privacy consent (`permission_granted=True`), Sentinel AI **never** asks for name or location again, immediately addressing them by name and confirming saved location.
+- **🚨 Human Help Escalation Tool (`create_escalation`)**: Automatically triggers when callers report being trapped, injured, or needing urgent physical rescue.
+- **🛡️ Strict Two-Turn Verbal Consent Flow (Step 4)**: Sentinel NEVER sends user information without first stating what will be sent and asking for explicit verbal permission out loud. If the caller denies permission, no ticket is created and emergency hotline 112 is provided.
+- **🔒 Sensitive PII Redaction (`sanitize_summary`)**: Automatically sanitizes private sensitive details (phone numbers, email addresses, national IDs / Aadhaar / SSNs, credit card numbers, passwords/PINs) before storage or dispatcher notification.
+- **🔁 Duplicate Request Prevention & Urgency Elevation**: Automatically updates open tickets for returning callers/locations instead of creating duplicates, and elevates urgency level (`LOW`, `MEDIUM`, `HIGH`, `EMERGENCY`) if condition worsens.
+- **📋 Live Emergency Dispatcher Dashboard & Webhooks (Step 5)**: Real-time Next.js Dashboard (`/escalations`) and API route (`/api/escalations`) displaying open requests, urgency badges, sanitized summaries, and dispatch action controls. Supports HTTP POST webhooks to Discord, Slack, or custom APIs.
+- **🏷️ Clear Reference IDs & Next Steps (Step 6)**: Returns a unique Reference ID (e.g. `ESC-62352`), explains next steps, and tracks dispatch status without making false immediate arrival promises.
+- **📞 Outbound Resolution Callbacks**: Automatically places an automated LiveKit SIP outbound call to inform callers when their request status is updated to `RESOLVED`.
 - **🌊 Real-Time District Flood & Weather Alerts**: Live river discharge monitoring ($m^3/s$), precipitation rates, and severe weather advisories powered by Open-Meteo Flood & Weather APIs.
 - **🏥 Spatial Emergency Shelter Search**: Nearest shelter distance computation using the Haversine formula, total bed capacity, occupancy tracking, and real-time available capacity calculation.
 - **📢 Out-Loud Network Failure Resilience**: Strict 3.0-second network timeout protection. Spoken fallback alerts with cached offline emergency protocols during degraded connectivity or offline status.
@@ -39,13 +46,16 @@
 └──────────────┘     └───────────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
                                                        │
                                                        ▼
-                                           ┌───────────────────────┐
-                                           │   Disaster Data & DB  │
-                                           │  • Open-Meteo Flood   │
-                                           │  • Open-Meteo Weather │
-                                           │  • Shelter Haversine  │
-                                           │  • SQLite Persistence │
-                                           └───────────────────────┘
+                                           ┌─────────────────────────────┐
+                                           │   Disaster Data & DB        │
+                                           │  • Open-Meteo Flood         │
+                                           │  • Open-Meteo Weather       │
+                                           │  • Shelter Haversine        │
+                                           │  • SQLite Persistence       │
+                                           │  • PII Redaction & Dedupe   │
+                                           │  • Dispatch Web Dashboard   │
+                                           │  • Outbound Callback Engine │
+                                           └─────────────────────────────┘
 ```
 
 ---
@@ -54,19 +64,24 @@
 
 | Function Tool | Purpose | Real Data Source / Computation | Timeout & Out-Loud Fallback Path |
 |---|---|---|---|
+| `create_escalation` | Create/update human rescue escalation ticket | SQLite `escalation_requests` table + PII Redaction Engine + Webhook | Enforces explicit consent & deduplication; returns Reference ID `ESC-XXXXX` |
+| `check_escalation_status` | Check request status (`OPEN`, `IN_PROGRESS`, `RESOLVED`) | SQLite `escalation_requests` lookup | Returns current status and resolution notes |
+| `resolve_escalation` | Mark ticket resolved & trigger callback | SQLite status update + LiveKit SIP dispatch | Automatically triggers outbound resolution call to caller |
 | `get_disaster_alerts` | District flood & severe weather status | Open-Meteo Geocoding, Forecast, & Flood APIs ($m^3/s$ discharge, precip, wind) | 3.0s timeout $\to$ Out-loud offline emergency alert with timestamp |
 | `find_relief_centers` | Nearest shelter lookup & bed capacity | Structured shelter dataset + Haversine spatial distance math ($d = 2R \arcsin(\dots)$) | 3.0s timeout $\to$ Out-loud offline shelter directory with capacity & facilities |
 | `lookup_caller` | Memory check for returning callers | SQLite `callers` database table | Returns caller facts & last check-in |
 | `save_caller_data` | Store caller facts & location | SQLite `callers` database table | Strict explicit consent check (`permission_granted=True`) |
 | `forget_caller` | Permanent data wipe | SQLite deletion | Permanent record removal from database |
-| `perform_welfare_check_in` | Log safety check-in | SQLite caller record update | Logs safety status & location |
 
 ---
 
 ## ⚠️ Safety & Design Rules
 
 > [!IMPORTANT]
-> **Strict Consent Privacy Rule**: Sentinel NEVER saves personal caller information (name, location, household size) without asking for explicit permission and getting positive caller consent (`permission_granted=True`).
+> **Strict Consent Privacy Rule**: Sentinel NEVER saves personal caller information or creates human escalation tickets without asking for explicit verbal permission out loud and getting positive caller consent (`permission_granted=True`).
+
+> [!IMPORTANT]
+> **PII Redaction Mandate**: All escalation summaries automatically undergo regex PII scrubbing (phone numbers, emails, national IDs / Aadhaar / SSNs, card numbers, PINs) before database storage or dispatcher notification.
 
 > [!IMPORTANT]
 > **Returning Caller Memory Mandate**: Once a caller's name and location are saved in the database, Sentinel NEVER asks for name or location again. It directly greets them by name and confirms their saved location.
@@ -88,7 +103,7 @@
 - **Voice Activity Detection (VAD)**: Silero VAD
 - **Turn Detection**: LiveKit Multilingual Turn Detector
 - **Domain APIs**: Open-Meteo Flood API, Weather Forecast API, Geocoding API
-- **Persistence Store**: SQLite 3
+- **Persistence & Dashboard**: SQLite 3 & Next.js Emergency Dispatcher Dashboard
 
 ---
 
@@ -118,6 +133,7 @@ LIVEKIT_API_SECRET=your_livekit_api_secret
 MURF_API_KEY=your_murf_api_key
 DEEPGRAM_API_KEY=your_deepgram_api_key
 GOOGLE_API_KEY=your_google_gemini_api_key
+WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
 ```
 
 ### 2. Run the Agent Server
@@ -126,14 +142,23 @@ GOOGLE_API_KEY=your_google_gemini_api_key
 uv run python src/agent.py dev
 ```
 
-### 3. Run the Frontend App
+### 3. Run the Frontend App & Dashboard
 
 ```bash
 cd frontend
 pnpm dev
 ```
 
-Open `http://localhost:3000` to interact with the Voice for Bharat Disaster Response Command Center.
+- Voice Assistant App: `http://localhost:3000`
+- Emergency Dispatcher Dashboard: `http://localhost:3000/escalations`
+
+### 4. Trigger Outbound Emergency Calls (Optional)
+
+You can dispatch automated emergency outbound calls using:
+
+```bash
+uv run python src/outbound_call.py
+```
 
 ---
 
@@ -147,18 +172,21 @@ uv run pytest
 
 ### Test Coverage Summary
 
+- `tests/test_both_paths.py`: Integration test verifying normal conversation path vs. emergency human escalation path with consent vs. permission refusal.
+- `tests/test_day7_escalation.py`: Tests human escalation tickets, urgency classification (`LOW`, `MEDIUM`, `HIGH`, `EMERGENCY`), PII redaction, deduplication, and resolution callbacks.
 - `tests/test_disaster_tools.py`: Tests live Open-Meteo data fetching, spatial distance math, capacity calculations, explicit timestamping, and out-loud timeout error handling.
 - `tests/test_db.py`: Tests caller SQLite persistence, explicit privacy consent enforcement, returning caller lookups, and data wiping.
 - `tests/test_agent.py`: LLM-as-judge evaluations verifying agent friendliness, grounding, and harmful request refusals.
 
-```
-collected 15 items
+```text
+collected 17 items
 
-tests/test_agent.py ...                                                 [ 20%]
-tests/test_db.py .....                                                  [ 53%]
+tests/test_agent.py ...                                                 [ 17%]
+tests/test_day7_escalation.py ..                                        [ 29%]
+tests/test_db.py .....                                                  [ 58%]
 tests/test_disaster_tools.py .......                                    [100%]
 
-============================= 15 passed in 40.2s =============================
+============================= 17 passed in 34.5s =============================
 ```
 
 ---
@@ -168,19 +196,29 @@ tests/test_disaster_tools.py .......                                    [100%]
 ```
 murf-livekit-starter/
 ├── backend/
+│   ├── caller_data.db        # SQLite database for persistent caller profiles & escalation tickets
 │   ├── src/
-│   │   ├── agent.py          # Sentinel Agent entrypoint, system prompt, and function tools
-│   │   ├── db.py             # SQLite caller persistence and privacy consent manager
-│   │   └── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
+│   │   ├── agent.py          # Sentinel Agent entrypoint, escalation tools & LiveKit session runner
+│   │   ├── db.py             # SQLite caller persistence, escalation ticket manager & PII redactor
+│   │   ├── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
+│   │   ├── outbound_call.py  # Outbound emergency dispatch & resolution callback script
+│   │   └── prompt.py         # System prompt, Sentinel identity, consent rules & escalation mandates
 │   └── tests/
-│       ├── test_agent.py     # LLM-as-judge evaluation suite
-│       ├── test_db.py        # Database & permission unit tests
+│       ├── test_agent.py          # LLM-as-judge evaluation suite
+│       ├── test_both_paths.py     # Dual-path verification (Normal vs. Escalation path)
+│       ├── test_day7_escalation.py # Escalation ticket, PII & callback unit tests
+│       ├── test_db.py             # Database & permission unit tests
 │       └── test_disaster_tools.py # Disaster tools & network failure unit tests
 ├── frontend/
-│   ├── app/                  # Next.js app pages and layout
+│   ├── app/
+│   │   ├── page.tsx               # Main Voice Assistant page
+│   │   ├── escalations/page.tsx   # Live Emergency Dispatcher Dashboard
+│   │   └── api/
+│   │       ├── token/route.ts        # LiveKit token endpoint
+│   │       └── escalations/route.ts  # Emergency escalation DB query & resolution API
 │   └── components/
-│       ├── app/              # WelcomeView, BharatBackground, DisasterTicker
-│       └── agents-ui/        # Side-by-side AgentSessionBlock & Live Conversation Log
+│       ├── app/                   # WelcomeView, BharatBackground, DisasterTicker
+│       └── agents-ui/             # Side-by-side AgentSessionBlock & Live Conversation Log
 ├── pyproject.toml            # Python package dependencies (uv)
 └── README.md                 # Project documentation
 ```
