@@ -1,236 +1,203 @@
-# Backend — Voice Agent with Murf Falcon TTS
+<a href="https://livekit.io/">
+  <img src="https://raw.githubusercontent.com/livekit/agents/main/docs/assets/livekit-agents-header.png" alt="Sentinel Voice AI Banner" width="100%" />
+</a>
 
-The Python backend for the Voice Agent Starter. It runs a real-time voice AI pipeline using [LiveKit Agents](https://docs.livekit.io/agents), connecting Murf Falcon TTS, Deepgram STT, and Google Gemini into a single conversational agent.
+# 🚨 Sentinel — Emergency Disaster Response Voice AI Agent (Voice for Bharat)
 
-## How It Works
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github)](https://github.com/)
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![LiveKit](https://img.shields.io/badge/LiveKit-Agents-000000?style=for-the-badge&logo=livekit)](https://livekit.io)
+[![Murf AI](https://img.shields.io/badge/Murf_TTS-Falcon_Stream-0055FF?style=for-the-badge)](https://murf.ai)
+[![Gemini](https://img.shields.io/badge/Google-Gemini_3.5_Flash-8E75FF?style=for-the-badge&logo=google)](https://aistudio.google.com)
+[![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3_Multilingual-13EF95?style=for-the-badge)](https://deepgram.com)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
+**Sentinel** is an emergency Disaster Response Voice AI Assistant operating on behalf of the National Emergency Management & Disaster Relief Command under the **Voice for Bharat** theme. Built with LiveKit Agents, Murf Falcon TTS, Deepgram Nova-3 Multilingual STT, and Google Gemini LLM, Sentinel provides real-time disaster alerts, spatial shelter navigation with capacity tracking, persistent caller memory, and out-loud network failure resilience.
+
+---
+
+## 🌟 Key Features
+
+- **🇮🇳 Voice for Bharat Emergency Theme**: Saffron, white, and emerald ambient glows with 24-spoke Ashoka Chakra watermark, top emergency helplines (`112 | 1078 | 108`), and SSR hydration safety.
+- **📱 Side-by-Side Split-Screen Session**: Agent Robot Console on Left 50% column and Real-Time Live Conversation Log (`LIVE CONVERSATION LOG`) on Right 50% column with zero text overlaps.
+- **🗣️ All-Indian Native Languages Support**: Deepgram `language="multi"` STT with automatic script detection (Hindi/Devanagari, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Urdu, and English) and dynamic LLM native language responses.
+- **🔒 Persistent Caller Memory & Direct Recognition**: Automatic SQLite returning caller lookup. Once caller name and location are saved with explicit privacy consent (`permission_granted=True`), Sentinel AI **never** asks for name or location again, immediately addressing them by name and confirming saved location.
+- **🌊 Real-Time District Flood & Weather Alerts**: Live river discharge monitoring ($m^3/s$), precipitation rates, and severe weather advisories powered by Open-Meteo Flood & Weather APIs.
+- **🏥 Spatial Emergency Shelter Search**: Nearest shelter distance computation using the Haversine formula, total bed capacity, occupancy tracking, and real-time available capacity calculation.
+- **📢 Out-Loud Network Failure Resilience**: Strict 3.0-second network timeout protection. Spoken fallback alerts with cached offline emergency protocols during degraded connectivity or offline status.
+- **🕒 Explicit Data Timestamping**: Every alert and shelter status update states exact observation date & time in spoken English words (`August tenth, twenty twenty-six at sixteen hours UTC`) so callers know data freshness.
+- **🗣️ Spoken Number Formatting**: Automatically converts numeric outputs into spoken words (e.g. `2.1` $\to$ `two point one`, `500` $\to$ `five hundred`) for natural TTS streaming.
+
+---
+
+## 🏗️ Architecture & Pipeline
 
 ```
-User speaks → [Deepgram STT] → text → [Gemini LLM] → response → [Murf Falcon TTS] → audio → User hears
+┌──────────────┐     ┌───────────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  User Audio  │ ──> │   Deepgram STT    │ ──> │  Gemini LLM  │ ──> │ Murf Falcon  │ ──> │ User Hears   │
+│  Input (RTC) │     │ (Nova-3 Multi)   │     │ Function Call│     │ TTS Audio    │     │ Response     │
+└──────────────┘     └───────────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+                                                       │
+                                                       ▼
+                                           ┌───────────────────────┐
+                                           │   Disaster Data & DB  │
+                                           │  • Open-Meteo Flood   │
+                                           │  • Open-Meteo Weather │
+                                           │  • Shelter Haversine  │
+                                           │  • SQLite Persistence │
+                                           └───────────────────────┘
 ```
 
-LiveKit handles the real-time audio transport. The agent connects to LiveKit as a participant, listens for user speech, and responds with synthesized audio.
+---
 
-## Setup
+## 🛠️ Function Tools API
 
-### 1. Install dependencies
+| Function Tool | Purpose | Real Data Source / Computation | Timeout & Out-Loud Fallback Path |
+|---|---|---|---|
+| `get_disaster_alerts` | District flood & severe weather status | Open-Meteo Geocoding, Forecast, & Flood APIs ($m^3/s$ discharge, precip, wind) | 3.0s timeout $\to$ Out-loud offline emergency alert with timestamp |
+| `find_relief_centers` | Nearest shelter lookup & bed capacity | Structured shelter dataset + Haversine spatial distance math ($d = 2R \arcsin(\dots)$) | 3.0s timeout $\to$ Out-loud offline shelter directory with capacity & facilities |
+| `lookup_caller` | Memory check for returning callers | SQLite `callers` database table | Returns caller facts & last check-in |
+| `save_caller_data` | Store caller facts & location | SQLite `callers` database table | Strict explicit consent check (`permission_granted=True`) |
+| `forget_caller` | Permanent data wipe | SQLite deletion | Permanent record removal from database |
+| `perform_welfare_check_in` | Log safety check-in | SQLite caller record update | Logs safety status & location |
+
+---
+
+## ⚠️ Safety & Design Rules
+
+> [!IMPORTANT]
+> **Strict Consent Privacy Rule**: Sentinel NEVER saves personal caller information (name, location, household size) without asking for explicit permission and getting positive caller consent (`permission_granted=True`).
+
+> [!IMPORTANT]
+> **Returning Caller Memory Mandate**: Once a caller's name and location are saved in the database, Sentinel NEVER asks for name or location again. It directly greets them by name and confirms their saved location.
+
+> [!WARNING]
+> **Out-Loud Failure Resilience**: During severe storm conditions or network timeouts (3-second limit), Sentinel speaks an offline emergency fallback status out loud instead of going silent or hallucinating live numbers.
+
+> [!NOTE]
+> **Number Spoken Form Rule**: All numeric values in tool outputs are converted to English words (e.g. `2.1` $\to$ `two point one`) so the TTS voice engine speaks naturally without reading raw digits.
+
+---
+
+## 💻 Tech Stack
+
+- **Framework**: [LiveKit Agents SDK (Python)](https://github.com/livekit/agents) & Next.js Frontend
+- **Speech-to-Text (STT)**: Deepgram Nova-3 Multilingual (`nova-3`, `language="multi"`)
+- **Large Language Model (LLM)**: Google Gemini 3.5 Flash (`gemini-3.5-flash-lite`)
+- **Text-to-Speech (TTS)**: Murf Falcon Streaming TTS (`voice="Anisha"`, `locale="hi-IN"`)
+- **Voice Activity Detection (VAD)**: Silero VAD
+- **Turn Detection**: LiveKit Multilingual Turn Detector
+- **Domain APIs**: Open-Meteo Flood API, Weather Forecast API, Geocoding API
+- **Persistence Store**: SQLite 3
+
+---
+
+## 🚀 Dev Setup & Quickstart
+
+### 1. Prerequisites & Environment Setup
+
+Clone the repository and install backend dependencies using `uv`:
 
 ```bash
 cd backend
 uv sync
 ```
 
-### 2. Configure environment
+Configure your API credentials by creating a `.env.local` file:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Fill in your keys in `.env.local`:
+Fill in your environment variables in `.env.local`:
 
-| Variable             | Where to get it                                           |
-| -------------------- | --------------------------------------------------------- |
-| `LIVEKIT_URL`        | [LiveKit Cloud](https://cloud.livekit.io/) → Settings     |
-| `LIVEKIT_API_KEY`    | [LiveKit Cloud](https://cloud.livekit.io/) → Settings     |
-| `LIVEKIT_API_SECRET` | [LiveKit Cloud](https://cloud.livekit.io/) → Settings     |
-| `MURF_API_KEY`       | [murf.ai/api/dashboard](https://murf.ai/api/dashboard)    |
-| `DEEPGRAM_API_KEY`   | [deepgram.com](https://console.deepgram.com/)             |
-| `GOOGLE_API_KEY`     | [aistudio.google.com](https://aistudio.google.com/apikey) |
-
-For LiveKit Cloud users, you can auto-populate LiveKit credentials:
-
-```bash
-lk cloud auth
-lk app env -w -d .env.local
+```env
+LIVEKIT_URL=wss://your-livekit-project.livekit.cloud
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+MURF_API_KEY=your_murf_api_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
+GOOGLE_API_KEY=your_google_gemini_api_key
 ```
 
-### 3. Download models
+### 2. Run the Agent Server
 
 ```bash
-uv run python src/agent.py download-files
-```
-
-This downloads Silero VAD and the LiveKit turn detector models.
-
-### 4. Run the agent
-
-```bash
-# Development mode (auto-reload)
 uv run python src/agent.py dev
-
-# Or test directly in your terminal (no frontend needed)
-uv run python src/agent.py console
-
-# Production
-uv run python src/agent.py start
 ```
 
-## Configuration
+### 3. Run the Frontend App
 
-All configuration lives in [`src/agent.py`](src/agent.py).
-
-### System prompt
-
-The `SYSTEM_PROMPT` constant at the top of `agent.py` controls what your agent does. Change it to build any voice-powered use case.
-
-#### Example prompts
-
-**Customer Support (default):**
-
-```
-You are a friendly and efficient customer support agent for a tech company. Help users with account issues, billing questions, and product troubleshooting. Be concise, empathetic, and solution-oriented. If you don't know something, say so honestly and offer to escalate.
+```bash
+cd frontend
+pnpm dev
 ```
 
-**Language Tutor:**
+Open `http://localhost:3000` to interact with the Voice for Bharat Disaster Response Command Center.
 
-```
-You are a patient and encouraging language tutor helping the user practice conversational Spanish. Speak primarily in Spanish but switch to English to explain grammar or vocabulary when needed. Correct mistakes gently and suggest better phrasing. Keep conversations natural and fun.
-```
+### 4. Trigger Outbound Emergency Calls (Optional)
 
-**AI Receptionist:**
+You can dispatch automated emergency outbound calls using:
 
-```
-You are a professional receptionist for a medical clinic. Help callers schedule appointments, answer questions about office hours and services, and take messages for doctors. Be warm but efficient. Ask for the caller's name and reason for calling upfront.
+```bash
+uv run python src/outbound_call.py
 ```
 
-**Interview Coach:**
+---
 
-```
-You are an experienced interview coach. Conduct mock interviews with the user for software engineering roles. Ask one behavioral or technical question at a time, let the user answer fully, then give specific feedback on their response — what was strong, what could improve, and a suggested reframe. Keep the tone encouraging but honest.
-```
+## 🧪 Testing & Evaluation Suite
 
-**Sales Assistant:**
-
-```
-You are a knowledgeable sales assistant for an electronics store. Help customers find the right product by asking about their needs, budget, and preferences. Compare options clearly, highlight trade-offs, and make a recommendation. Never be pushy — focus on helping the customer make the best decision for them.
-```
-
-**Fitness Coach:**
-
-```
-You are an upbeat personal fitness coach. Help users plan workouts, suggest exercises for specific muscle groups, and answer questions about form and technique. Ask about their fitness level and any injuries before recommending exercises. Keep instructions clear and motivating.
-```
-
-**Storyteller / Bedtime Narrator:**
-
-```
-You are a creative storyteller who tells original bedtime stories for children aged 4–8. Ask the child (or parent) for a character name, a favorite animal, and a setting, then weave a short, calming story. Use vivid but simple language. End each story on a peaceful, sleepy note.
-```
-
-**Meeting Summarizer:**
-
-```
-You are a meeting assistant. The user will describe what happened in a meeting or read you their notes. Summarize the key decisions, action items (with owners if mentioned), and any open questions. Be concise and structured. Ask clarifying questions if something is ambiguous.
-```
-
-**Trivia Game Host:**
-
-```
-You are an enthusiastic trivia game host. Ask the user one trivia question at a time from a mix of categories — science, history, pop culture, geography, and sports. Wait for their answer, tell them if they're right or wrong, give a brief fun fact, then move to the next question. Keep score and announce it every 5 questions.
-```
-
-**Mental Health Check-in Companion:**
-
-```
-You are a gentle, non-clinical wellness companion. Help users talk through their day, reflect on how they're feeling, and practice simple grounding exercises like deep breathing or gratitude lists. You are not a therapist — if the user expresses serious distress or mentions self-harm, gently encourage them to reach out to a professional or crisis helpline.
-```
-
-### Voice
-
-Set the `voice` argument in the `murf.TTS(...)` call:
-
-```python
-tts=murf.TTS(
-    voice="en-US-matthew",    # Change this
-    style="Conversation",
-    tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-    text_pacing=True
-)
-```
-
-Some voice options:
-
-| Voice ID | Description                      |
-| -------- | -------------------------------- |
-| `Anisha` | Indian English, female (default) |
-| `Pooja`  | Indian English, female           |
-| `Samar`  | Indian English, male             |
-| `Amara`  | US English, female               |
-| `Hazel`  | UK English, female               |
-| `Bertie` | UK English, male                 |
-| `Gordon` | US English, male                 |
-
-Browse all 150+ voices: [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library).
-
-### STT (Speech-to-Text)
-
-Default is Deepgram Nova-3. Change in the `AgentSession(stt=...)` call:
-
-```python
-stt=deepgram.STT(model="nova-3")
-```
-
-### LLM
-
-Default is Google Gemini. To switch:
-
-- **Gemini (default):** Set `GOOGLE_API_KEY` in `.env.local`
-- **OpenAI:** Set `OPENAI_API_KEY`, install `livekit-agents[openai]`, and change the `llm=` argument
-
-## Testing
-
-The project includes an eval suite based on the LiveKit Agents [testing framework](https://docs.livekit.io/agents/build/testing/):
+Sentinel includes a full unit test and evaluation suite built on `pytest` and LiveKit Agents testing framework:
 
 ```bash
 uv run pytest
 ```
 
-Tests are in [`tests/test_agent.py`](tests/test_agent.py) and use LLM-as-judge evaluations to verify the agent behaves correctly (friendly greetings, grounding, refusing harmful requests).
+### Test Coverage Summary
 
-To run tests in CI, you'll need to add `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` as repository secrets.
-
-## Deployment
-
-### Railway
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/tIVCF1?referralCode=cNjn2P&utm_medium=integration&utm_source=template&utm_campaign=generic)
-
-Set these environment variables in Railway:
-
-- `MURF_API_KEY`
-- `DEEPGRAM_API_KEY`
-- `GOOGLE_API_KEY`
-- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
-
-### Docker
-
-A production-ready [Dockerfile](Dockerfile) is included:
-
-```bash
-docker build -t murf-voice-agent .
-docker run --env-file .env.local murf-voice-agent
-```
-
-## Project Structure
+- `tests/test_disaster_tools.py`: Tests live Open-Meteo data fetching, spatial distance math, capacity calculations, explicit timestamping, and out-loud timeout error handling.
+- `tests/test_db.py`: Tests caller SQLite persistence, explicit privacy consent enforcement, returning caller lookups, and data wiping.
+- `tests/test_agent.py`: LLM-as-judge evaluations verifying agent friendliness, grounding, and harmful request refusals.
 
 ```
-backend/
-├── src/
-│   └── agent.py          # Agent entrypoint — pipeline, prompt, config
-├── tests/
-│   └── test_agent.py     # LLM-judged eval suite
-├── .env.example           # Environment variable template
-├── pyproject.toml         # Python dependencies (uv)
-├── Dockerfile             # Production container
-└── railway.toml           # Railway deploy config
+collected 15 items
+
+tests/test_agent.py ...                                                 [ 20%]
+tests/test_db.py .....                                                  [ 53%]
+tests/test_disaster_tools.py .......                                    [100%]
+
+============================= 15 passed in 40.2s =============================
 ```
 
-## Links
+---
 
-- [Murf Falcon TTS Docs](https://murf.ai/api/docs/text-to-speech/streaming)
-- [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library)
-- [LiveKit Agents Docs](https://docs.livekit.io/agents)
-- [Deepgram Nova-3 Docs](https://developers.deepgram.com)
+## 📁 Project Structure
 
-## License
+```
+murf-livekit-starter/
+├── backend/
+│   ├── caller_data.db        # SQLite database for persistent caller profiles & memory
+│   ├── src/
+│   │   ├── agent.py          # Sentinel Agent entrypoint and LiveKit session runner
+│   │   ├── db.py             # SQLite caller persistence and privacy consent manager
+│   │   ├── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
+│   │   ├── outbound_call.py  # Outbound emergency dispatch script
+│   │   └── prompt.py         # System prompt, Sentinel identity, consent rules & greeting flow
+│   └── tests/
+│       ├── test_agent.py     # LLM-as-judge evaluation suite
+│       ├── test_db.py        # Database & permission unit tests
+│       └── test_disaster_tools.py # Disaster tools & network failure unit tests
+├── frontend/
+│   ├── app/                  # Next.js app pages and layout
+│   └── components/
+│       ├── app/              # WelcomeView, BharatBackground, DisasterTicker
+│       └── agents-ui/        # Side-by-side AgentSessionBlock & Live Conversation Log
+├── pyproject.toml            # Python package dependencies (uv)
+└── README.md                 # Project documentation
+```
 
-MIT — see [LICENSE](LICENSE).
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

@@ -30,16 +30,17 @@ export async function POST(req: Request) {
       throw new Error('LIVEKIT_API_SECRET is not defined');
     }
 
-    // Parse room config from request body (if provided).
+    // Parse room config from request body (if provided) or configure explicit agent dispatch.
     const body = await req.json().catch(() => ({}));
     let roomConfig: RoomConfiguration | undefined;
+    const targetAgentName = AGENT_NAME || 'my-agent';
+
     if (body?.room_config) {
       roomConfig = RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true });
-    } else if (AGENT_NAME) {
-      // When AGENT_NAME is set, configure explicit agent dispatch so the named
-      // agent worker picks up the job when a user joins the room.
+    } else {
+      // Explicitly configure agent dispatch so named agent worker picks up job immediately
       roomConfig = RoomConfiguration.fromJson(
-        { agents: [{ agentName: AGENT_NAME }] },
+        { agents: [{ agentName: targetAgentName }] },
         { ignoreUnknownFields: true }
       );
     }

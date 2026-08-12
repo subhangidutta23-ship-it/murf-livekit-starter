@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { ThemeProvider } from '@/components/app/theme-provider';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import { DisasterTicker } from '@/components/app/disaster-ticker';
 import { cn } from '@/lib/shadcn/utils';
 import { getAppConfig, getStyles } from '@/lib/utils';
 import '@/styles/globals.css';
@@ -67,33 +68,28 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body className="overflow-x-hidden">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 left-0 z-50 hidden w-full flex-row justify-between p-6 md:flex">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://livekit.io"
-              className="scale-100 transition-transform duration-300 hover:scale-110"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo} alt={`${companyName} Logo`} className="block size-6 dark:hidden" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoDark ?? logo}
-                alt={`${companyName} Logo`}
-                className="hidden size-6 dark:block"
-              />
-            </a>
-            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase">
+          {/* Top Active Disaster Ticker */}
+          <DisasterTicker />
+
+          <header className="fixed top-9 left-0 z-40 hidden w-full flex-row items-center justify-between p-4 md:px-6 md:py-3 pointer-events-none">
+            <div className="pointer-events-auto flex items-center space-x-2 rounded-full border border-amber-400/70 bg-white/90 dark:bg-slate-900/90 px-3.5 py-1.5 shadow-md backdrop-blur-md">
+              <span className="text-sm">🇮🇳</span>
+              <span className="text-xs font-mono font-bold tracking-wider text-slate-800 dark:text-slate-100 uppercase">
+                Sentinel AI <span className="text-emerald-600 dark:text-emerald-400 font-sans">• Voice for Bharat</span>
+              </span>
+            </div>
+
+            <span className="pointer-events-auto text-foreground font-mono text-xs font-bold tracking-wider uppercase rounded-full border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
               Built with{' '}
               <a
                 target="_blank"
                 rel="noopener noreferrer"
                 href="https://docs.livekit.io/agents"
-                className="underline underline-offset-4"
+                className="underline underline-offset-4 text-sky-600 dark:text-sky-400"
               >
                 LiveKit Agents
               </a>

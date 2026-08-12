@@ -234,8 +234,13 @@ Murf Falcon and LiveKit handle audio format internally. For advanced options, se
 ```
 murf-livekit-starter/
 ├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
+│   ├── caller_data.db       # SQLite database for persistent caller profiles & memory
 │   ├── src/
-│   │   └── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
+│   │   ├── agent.py         # Agent entrypoint & LiveKit pipeline runner
+│   │   ├── db.py            # SQLite caller persistence & consent manager
+│   │   ├── disaster_data.py # Disaster data, weather & shelter tools
+│   │   ├── outbound_call.py # Outbound emergency call dispatch script
+│   │   └── prompt.py        # System prompt, Sentinel identity & consent flow
 │   ├── tests/               # Agent tests
 │   ├── .env.example         # Backend env template
 │   ├── pyproject.toml       # Python deps (uv)
