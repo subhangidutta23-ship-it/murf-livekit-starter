@@ -13,6 +13,10 @@ from agent import Assistant
 class MockRunContext:
     pass
 
+from pathlib import Path
+
+test_db_path = Path(__file__).parent / "test_both_paths.db"
+
 async def run_both_paths_test():
     print("================================================================")
     print("STEP 7 TEST: TESTING NORMAL CONVERSATION VS HUMAN ESCALATION")

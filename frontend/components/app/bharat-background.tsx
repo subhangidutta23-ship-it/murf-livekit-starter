@@ -16,22 +16,22 @@ const ASHOKA_SPOKES = Array.from({ length: 24 }).map((_, i) => {
 
 export function BharatBackground() {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none bg-slate-50/70">
       
       {/* Top Right Saffron Soft Glow */}
-      <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-amber-400/20 via-orange-500/15 to-transparent blur-3xl" />
+      <div className="absolute -top-32 -right-32 w-[550px] h-[550px] rounded-full bg-gradient-to-br from-amber-400/25 via-orange-400/15 to-transparent blur-3xl" />
 
       {/* Bottom Left India Green Soft Glow */}
-      <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-emerald-600/20 via-teal-500/15 to-transparent blur-3xl" />
+      <div className="absolute -bottom-32 -left-32 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-emerald-500/25 via-teal-400/15 to-transparent blur-3xl" />
 
       {/* Center Soft Navy & Sky Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-radial from-sky-300/15 via-blue-500/5 to-transparent blur-3xl" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[750px] rounded-full bg-radial from-sky-200/40 via-blue-400/10 to-transparent blur-3xl" />
 
       {/* Subtle Geometric Radial Dots Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e3a8a_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.07]" />
+      <div className="absolute inset-0 bg-[radial-gradient(#1e3a8a_1.2px,transparent_1.2px)] [background-size:28px_28px] opacity-[0.08]" />
 
       {/* Rotating Ashoka Chakra Watermark (24 Spokes) */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] md:w-[650px] md:h-[650px] opacity-[0.04] dark:opacity-[0.07] animate-[spin_120s_linear_infinite] text-blue-900 dark:text-blue-200">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[540px] md:w-[680px] md:h-[680px] opacity-[0.09] animate-[spin_90s_linear_infinite] text-blue-900">
         <svg viewBox="0 0 100 100" suppressHydrationWarning className="w-full h-full fill-none stroke-current stroke-[1.2]">
           {/* Outer Ring */}
           <circle cx="50" cy="50" r="46" />

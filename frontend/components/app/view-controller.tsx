@@ -114,7 +114,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
   const isReadyState = !isSessionActive && !isConnectingState && !isCallEndedState && !micError;
 
   return (
-    <div className="relative w-full h-full min-h-svh flex items-center justify-center bg-gradient-to-br from-amber-50/40 via-sky-50/60 to-emerald-50/40 dark:from-slate-950 dark:via-blue-950/40 dark:to-slate-900 text-slate-900 dark:text-slate-100 overflow-hidden">
+    <div className="relative w-full min-h-screen text-slate-900 overflow-x-hidden">
       
       {/* Voice for Bharat Background Theme */}
       <BharatBackground />
