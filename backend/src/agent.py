@@ -428,9 +428,11 @@ async def my_agent(ctx: JobContext):
         "caller_name": user_name or ("SIP Caller" if is_outbound_sip else "Browser Caller"),
         "call_type": call_type,
         "is_successful": False,
-        "outcome_reason": "Caller hung up before receiving verified information or creating a human-help request",
+        "outcome_reason": "Caller hung up without responding to Sentinel's opening statement",
         "started_at": call_start_time.isoformat(),
         "has_user_interacted": False,
+        "user_replied_to_last_agent_turn": False,
+        "user_speech_count": 0,
     }
 
     if has_saved_caller:
@@ -478,7 +480,9 @@ async def my_agent(ctx: JobContext):
             return
 
         call_context["has_user_interacted"] = True
-        logger.info(f"🎤 [USER INPUT TRANSCRIBED]: '{text}'")
+        call_context["user_replied_to_last_agent_turn"] = True
+        call_context["user_speech_count"] += 1
+        logger.info(f"🎤 [USER INPUT TRANSCRIBED]: '{text}' (Turn #{call_context['user_speech_count']})")
 
         is_devanagari = bool(re.search(r'[\u0900-\u097F]', text))
         has_hindi_keyword = any(kw in text.lower() for kw in HINDI_KEYWORDS)
@@ -499,12 +503,17 @@ async def my_agent(ctx: JobContext):
     @session.on("user_state_changed")
     def on_user_state_changed(event):
         logger.info(f"🗣️ [USER STATE]: {event.new_state}")
-        if str(event.new_state).lower() in ("speaking", "listening"):
+        state_str = str(event.new_state).lower()
+        if "speaking" in state_str or "listening" in state_str:
             call_context["has_user_interacted"] = True
+            call_context["user_replied_to_last_agent_turn"] = True
 
     @session.on("agent_state_changed")
     def on_agent_state_changed(event):
         logger.info(f"🤖 [AGENT STATE]: {event.new_state}")
+        state_str = str(event.new_state).lower()
+        if "speaking" in state_str:
+            call_context["user_replied_to_last_agent_turn"] = False
 
     @session.on("error")
     def on_session_error(event):
@@ -547,6 +556,8 @@ async def my_agent(ctx: JobContext):
                 return
 
             call_context["has_user_interacted"] = True
+            call_context["user_replied_to_last_agent_turn"] = True
+            call_context["user_speech_count"] += 1
             logger.info(f"💬 [USER TEXT CHAT RECEIVED]: '{text_content}' (Topic: '{dp.topic}')")
 
             is_devanagari = bool(re.search(r'[\u0900-\u097F]', text_content))
@@ -634,6 +645,8 @@ async def my_agent(ctx: JobContext):
         
         await session.say(opening_text, allow_interruptions=True)
 
+    call_context["user_replied_to_last_agent_turn"] = False
+
     disconnect_event = asyncio.Event()
 
     @ctx.room.on("disconnected")
@@ -645,9 +658,21 @@ async def my_agent(ctx: JobContext):
     finally:
         ended_at = datetime.now(timezone.utc)
         duration_sec = int((ended_at - call_start_time).total_seconds())
-        if not call_context["is_successful"] and (call_context.get("has_user_interacted") or duration_sec >= 3):
-            call_context["is_successful"] = True
-            call_context["outcome_reason"] = "Caller received verified disaster response guidance"
+
+        has_interacted = bool(call_context.get("has_user_interacted", False))
+        speech_count = int(call_context.get("user_speech_count", 0))
+        replied_to_last = bool(call_context.get("user_replied_to_last_agent_turn", False))
+
+        if not has_interacted or speech_count == 0:
+            call_context["is_successful"] = False
+            call_context["outcome_reason"] = "Caller hung up without responding to Sentinel's opening statement"
+        elif not replied_to_last:
+            call_context["is_successful"] = False
+            call_context["outcome_reason"] = "Caller hung up without responding to Sentinel's question"
+        else:
+            if not call_context["is_successful"]:
+                call_context["is_successful"] = True
+                call_context["outcome_reason"] = "Caller received verified disaster response guidance"
 
         final_status = "SUCCESS" if call_context["is_successful"] else "FAILED"
         db.save_call_record(
