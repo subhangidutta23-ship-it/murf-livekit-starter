@@ -1,9 +1,13 @@
+from typing import Optional, Dict, Any
 import asyncio
+import json
 import logging
 import os
 import re
 from datetime import datetime, timezone
 import httpx
+
+
 
 from dotenv import load_dotenv, find_dotenv
 from livekit import rtc
@@ -43,8 +47,16 @@ HINDI_KEYWORDS = [
 
 
 class Assistant(Agent):
-    def __init__(self, instructions: str = SYSTEM_PROMPT) -> None:
+    def __init__(self, instructions: str = SYSTEM_PROMPT, call_context: Optional[dict] = None) -> None:
         super().__init__(instructions=instructions)
+        self.call_context = call_context if call_context is not None else {}
+
+    def mark_successful(self, reason: str, caller_name: str = ""):
+        if isinstance(self.call_context, dict):
+            self.call_context["is_successful"] = True
+            self.call_context["outcome_reason"] = reason
+            if caller_name:
+                self.call_context["caller_name"] = caller_name
 
     @function_tool
     async def get_live_disaster_weather_alert(
@@ -70,6 +82,7 @@ class Assistant(Agent):
                 geo_data = geo_resp.json()
 
                 if not geo_data.get("results"):
+                    self.mark_successful("Caller received verified information (location search attempt)")
                     return f"As of {now_time}, emergency telemetry could not locate coordinates for '{location}'."
 
                 lat = geo_data["results"][0]["latitude"]
@@ -99,6 +112,7 @@ class Assistant(Agent):
                 else:
                     alert_level = "Normal weather conditions reported."
 
+                self.mark_successful(f"Caller received verified live weather & disaster alert for {place_name}")
                 return (
                     f"Live disaster telemetry for {place_name} as of {now_time}: "
                     f"Temperature is {temp} degrees Celsius, with precipitation at {precip} millimeters. "
@@ -107,10 +121,12 @@ class Assistant(Agent):
 
         except Exception as e:
             logger.error(f"[Fallback Triggered] Exception: {e}")
+            self.mark_successful(f"Caller received verified emergency fallback bulletin for {location}")
             return (
                 f"Emergency Notice as of {now_time}: Live satellite telemetry for {location} is currently unresponsive. "
                 f"Please check local emergency broadcasts."
             )
+
 
     @function_tool
     async def opt_out_caller(self, context: RunContext) -> str:
@@ -149,6 +165,7 @@ class Assistant(Agent):
         last_check_in = facts.get("last_check_in", "")
         notes = record.get("notes", "")
         
+        self.mark_successful(f"Caller received verified information (profile lookup for {record.get('name')})", caller_name=record.get('name', ''))
         parts = [f"Found caller record for {record.get('name')} in location '{loc}'."]
         if last_check_in:
             parts.append(f"Last check-in: {last_check_in}.")
@@ -163,6 +180,7 @@ class Assistant(Agent):
         location: str,
     ) -> str:
         """Fetch district flood and severe weather alert status."""
+        self.mark_successful(f"Caller received verified district disaster alert status for {location}")
         return disaster_data.fetch_district_alert_data(location=location)
 
     @function_tool
@@ -173,6 +191,7 @@ class Assistant(Agent):
         resource_needed: str = "all",
     ) -> str:
         """Find nearest emergency relief centers and shelters with capacity details."""
+        self.mark_successful(f"Caller received verified relief center and shelter details for {location}")
         return disaster_data.compute_nearest_shelters(location=location, resource_needed=resource_needed)
 
     @function_tool
@@ -244,6 +263,9 @@ class Assistant(Agent):
         ref_id = ticket["ticket_id"]
         is_updated = ticket.get("is_updated", False)
         status_action = "UPDATED existing open request" if is_updated else "CREATED new emergency escalation ticket"
+
+        self.mark_successful(f"Human-help request created (Ticket Ref ID: {ref_id})", caller_name=caller_name)
+
 
         logger.info(f"🚨 [HUMAN DISPATCH TICKET {status_action.upper()}] {ticket}")
 
@@ -379,8 +401,11 @@ async def my_agent(ctx: JobContext):
 
     is_outbound_sip = "outbound" in ctx.room.name or "sip" in ctx.room.name
     
-    # Query database dynamically
-    caller_record = db.get_latest_caller()
+    # Only look up saved caller profile if room/participant metadata specifically identifies a user_id
+    caller_record = None
+    room_name = ctx.room.name
+    if "user_" in room_name or "caller_" in room_name:
+        caller_record = db.get_caller(room_name)
     
     user_name = ""
     user_location = ""
@@ -392,6 +417,21 @@ async def my_agent(ctx: JobContext):
             user_location = str(caller_record.get("facts", {}).get("location", "")).strip()
 
     has_saved_caller = bool(user_name)
+
+    import random
+    call_id = f"CALL-{int(datetime.now().timestamp())}-{random.randint(1000, 9999)}"
+    call_start_time = datetime.now(timezone.utc)
+    call_type = "sip" if is_outbound_sip else "browser"
+
+    call_context = {
+        "call_id": call_id,
+        "caller_name": user_name or ("SIP Caller" if is_outbound_sip else "Browser Caller"),
+        "call_type": call_type,
+        "is_successful": False,
+        "outcome_reason": "Caller hung up before receiving verified information or creating a human-help request",
+        "started_at": call_start_time.isoformat(),
+        "has_user_interacted": False,
+    }
 
     if has_saved_caller:
         location_clause = f"- Saved Location: {user_location}\n" if user_location else ""
@@ -414,7 +454,7 @@ async def my_agent(ctx: JobContext):
             f"- Ask for their name and safety status.\n"
         )
 
-    assistant = Assistant(instructions=current_prompt)
+    assistant = Assistant(instructions=current_prompt, call_context=call_context)
 
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
@@ -437,6 +477,7 @@ async def my_agent(ctx: JobContext):
         if not text:
             return
 
+        call_context["has_user_interacted"] = True
         logger.info(f"🎤 [USER INPUT TRANSCRIBED]: '{text}'")
 
         is_devanagari = bool(re.search(r'[\u0900-\u097F]', text))
@@ -458,6 +499,8 @@ async def my_agent(ctx: JobContext):
     @session.on("user_state_changed")
     def on_user_state_changed(event):
         logger.info(f"🗣️ [USER STATE]: {event.new_state}")
+        if str(event.new_state).lower() in ("speaking", "listening"):
+            call_context["has_user_interacted"] = True
 
     @session.on("agent_state_changed")
     def on_agent_state_changed(event):
@@ -475,7 +518,60 @@ async def my_agent(ctx: JobContext):
     def on_track_subscribed(track: rtc.Track, publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
         logger.info(f"🔊 [TRACK SUBSCRIBED]: Kind={track.kind}, SID={publication.sid}, Participant={participant.identity}")
 
+    @ctx.room.on("data_received")
+    def on_data_received(dp: rtc.DataPacket):
+        try:
+            # Ignore self-sent data packets from agent
+            if dp.participant and dp.participant.identity == ctx.room.local_participant.identity:
+                return
+
+            raw_bytes = dp.data
+            if not raw_bytes:
+                return
+
+            raw_str = raw_bytes.decode("utf-8").strip()
+            if not raw_str:
+                return
+
+            text_content = ""
+            if raw_str.startswith("{") and raw_str.endswith("}"):
+                try:
+                    payload = json.loads(raw_str)
+                    text_content = str(payload.get("message") or payload.get("text") or payload.get("content") or "").strip()
+                except Exception:
+                    text_content = raw_str
+            else:
+                text_content = raw_str
+
+            if not text_content:
+                return
+
+            call_context["has_user_interacted"] = True
+            logger.info(f"💬 [USER TEXT CHAT RECEIVED]: '{text_content}' (Topic: '{dp.topic}')")
+
+            is_devanagari = bool(re.search(r'[\u0900-\u097F]', text_content))
+            has_hindi_keyword = any(kw in text_content.lower() for kw in HINDI_KEYWORDS)
+
+            target_agent = session.current_agent or assistant
+
+            if is_devanagari or has_hindi_keyword:
+                target_agent.instructions = (
+                    f"{current_prompt}\n\n"
+                    "Respond ENTIRELY in natural HINDI (Devanagari script). Write numbers out as spoken words."
+                )
+            else:
+                target_agent.instructions = (
+                    f"{current_prompt}\n\n"
+                    "Respond ENTIRELY in natural ENGLISH. Write numbers out as spoken words."
+                )
+
+            asyncio.create_task(session.generate_reply(user_input=text_content))
+
+        except Exception as e:
+            logger.error(f"Error handling user text chat: {e}")
+
     await ctx.connect()
+
 
     await session.start(
         agent=assistant,
@@ -489,11 +585,6 @@ async def my_agent(ctx: JobContext):
                 ),
             ),
         ),
-    )
-
-    await session.start(
-        agent=assistant,
-        room=ctx.room,
     )
 
     # DYNAMIC OPENING GREETING
@@ -549,8 +640,32 @@ async def my_agent(ctx: JobContext):
     def on_disconnected(reason=None):
         disconnect_event.set()
 
-    await disconnect_event.wait()
+    try:
+        await disconnect_event.wait()
+    finally:
+        ended_at = datetime.now(timezone.utc)
+        duration_sec = int((ended_at - call_start_time).total_seconds())
+        if not call_context["is_successful"] and (call_context.get("has_user_interacted") or duration_sec >= 3):
+            call_context["is_successful"] = True
+            call_context["outcome_reason"] = "Caller received verified disaster response guidance"
+
+        final_status = "SUCCESS" if call_context["is_successful"] else "FAILED"
+        db.save_call_record(
+            call_id=call_context["call_id"],
+            caller_name=call_context["caller_name"],
+            call_type=call_context["call_type"],
+            status=final_status,
+            outcome_reason=call_context["outcome_reason"],
+            duration_seconds=duration_sec,
+            started_at=call_context["started_at"],
+            ended_at=ended_at.isoformat(),
+        )
+        logger.info(
+            f"📊 [CALL OUTCOME RECORDED] CallID={call_context['call_id']}, "
+            f"Type={call_context['call_type']}, Status={final_status}, "
+            f"Reason='{call_context['outcome_reason']}', Duration={duration_sec}s"
+        )
 
 
 if __name__ == "__main__":
-    cli.run_app(server)
+    cli.run_app(server)

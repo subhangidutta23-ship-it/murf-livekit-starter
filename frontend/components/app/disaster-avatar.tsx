@@ -263,8 +263,8 @@ export function DisasterAvatar({
           </defs>
         </svg>
 
-        {/* Voice AI Name Tag Badge */}
-        <div className={cn('absolute -bottom-2 border px-2.5 py-0.5 rounded-full shadow-md text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5 backdrop-blur-md', current.badgeBg)}>
+        {/* Voice AI Name Tag Badge - Perfectly Centered */}
+        <div className={cn('absolute -bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap border px-3 py-0.5 rounded-full shadow-md text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5 backdrop-blur-md z-20', current.badgeBg)}>
           <span className={cn('w-1.5 h-1.5 rounded-full inline-block', isSpeaking ? 'bg-emerald-500 animate-ping' : isListening ? 'bg-blue-500' : isConnecting ? 'bg-amber-500' : 'bg-sky-500')} />
           SENTINEL
         </div>

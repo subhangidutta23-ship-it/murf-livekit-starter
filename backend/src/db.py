@@ -57,7 +57,35 @@ def init_db(db_path: Optional[Path | str] = None) -> None:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS call_records (
+                call_id TEXT PRIMARY KEY,
+                caller_name TEXT DEFAULT 'Anonymous Caller',
+                call_type TEXT DEFAULT 'browser',
+                status TEXT NOT NULL,
+                outcome_reason TEXT NOT NULL,
+                duration_seconds INTEGER DEFAULT 0,
+                started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                ended_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         conn.commit()
+
+
+def clear_all_data(db_path: Optional[Path | str] = None) -> None:
+    """Clear all records from call_records, escalation_requests, and callers tables."""
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM call_records")
+        cursor.execute("DELETE FROM escalation_requests")
+        cursor.execute("DELETE FROM callers")
+        conn.commit()
+
+
 
 
 def get_caller(identifier: str, db_path: Optional[Path | str] = None) -> Optional[Dict[str, Any]]:
@@ -503,5 +531,124 @@ def list_all_escalations(status_filter: str = "", db_path: Optional[Path | str] 
         return [dict(r) for r in rows]
 
 
+def save_call_record(
+    call_id: str,
+    caller_name: str = "Anonymous Caller",
+    call_type: str = "browser",
+    status: str = "FAILED",
+    outcome_reason: str = "No verified information received or human-help created",
+    duration_seconds: int = 0,
+    started_at: Optional[str] = None,
+    ended_at: Optional[str] = None,
+    db_path: Optional[Path | str] = None,
+) -> Dict[str, Any]:
+    """
+    Save or update a call outcome record in SQLite database.
+    Success Criteria (Disaster Response): Caller receives verified information OR human-help request is created.
+    """
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    start_time = started_at or now_iso
+    end_time = ended_at or now_iso
+    norm_status = status.strip().upper()
+    if norm_status not in ("SUCCESS", "FAILED"):
+        norm_status = "FAILED"
+
+    clean_name = (caller_name or "Anonymous Caller").strip()
+    clean_type = (call_type or "browser").strip().lower()
+
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO call_records (
+                call_id, caller_name, call_type, status, outcome_reason,
+                duration_seconds, started_at, ended_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(call_id) DO UPDATE SET
+                caller_name = excluded.caller_name,
+                call_type = excluded.call_type,
+                status = excluded.status,
+                outcome_reason = excluded.outcome_reason,
+                duration_seconds = excluded.duration_seconds,
+                started_at = excluded.started_at,
+                ended_at = excluded.ended_at
+            """,
+            (
+                call_id,
+                clean_name,
+                clean_type,
+                norm_status,
+                outcome_reason,
+                duration_seconds,
+                start_time,
+                end_time,
+            ),
+        )
+        conn.commit()
+
+    return {
+        "call_id": call_id,
+        "caller_name": clean_name,
+        "call_type": clean_type,
+        "status": norm_status,
+        "outcome_reason": outcome_reason,
+        "duration_seconds": duration_seconds,
+        "started_at": start_time,
+        "ended_at": end_time,
+    }
+
+
+def get_call_metrics(db_path: Optional[Path | str] = None) -> Dict[str, Any]:
+    """
+    Retrieve call analytics metrics for dashboard: Total calls, Successful calls, Failed calls, Success rate.
+    """
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as total FROM call_records")
+        total = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as successful FROM call_records WHERE status = 'SUCCESS'")
+        successful = cursor.fetchone()["successful"]
+
+        cursor.execute("SELECT COUNT(*) as failed FROM call_records WHERE status = 'FAILED'")
+        failed = cursor.fetchone()["failed"]
+
+        success_rate = round((successful / total * 100), 1) if total > 0 else 0.0
+
+        return {
+            "total_calls": total,
+            "successful_calls": successful,
+            "failed_calls": failed,
+            "success_rate": success_rate,
+        }
+
+
+def list_call_records(limit: int = 50, db_path: Optional[Path | str] = None) -> List[Dict[str, Any]]:
+    """List recent call outcome records for public dashboard (omitting transcripts & sensitive PII)."""
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT call_id, caller_name, call_type, status, outcome_reason, duration_seconds, started_at, ended_at
+            FROM call_records
+            ORDER BY ended_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
 # Automatically initialize DB schema on module import
 init_db()
+

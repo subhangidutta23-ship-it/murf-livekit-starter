@@ -1,45 +1,51 @@
 import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
+
+const execFileAsync = promisify(execFile);
 
 export const revalidate = 0;
 
-// Helper to run Python script to query or update DB
-function runPyDbCommand(commandType: string, payload: any = {}) {
+let escalationsCache: { timestamp: number; key: string; data: any } | null = null;
+const CACHE_TTL_MS = 2000;
+
+function getPythonExecutable(backendDir: string): string {
+  const venvWin = path.join(backendDir, '.venv', 'Scripts', 'python.exe');
+  if (fs.existsSync(venvWin)) return venvWin;
+
+  const venvUnix = path.join(backendDir, '.venv', 'bin', 'python');
+  if (fs.existsSync(venvUnix)) return venvUnix;
+
+  return 'python';
+}
+
+// Helper to run Python script asynchronously
+async function runPyDbCommand(commandType: string, payload: any = {}) {
+  const now = Date.now();
+  const cacheKey = `${commandType}:${JSON.stringify(payload)}`;
+  if (escalationsCache && escalationsCache.key === cacheKey && now - escalationsCache.timestamp < CACHE_TTL_MS) {
+    return escalationsCache.data;
+  }
+
   try {
     const backendDir = path.resolve(process.cwd(), '..', 'backend');
-    const pyExe = path.join(backendDir, '.venv', 'Scripts', 'python.exe');
-    
-    const pyScript = `
-import sys, json, os
-sys.path.insert(0, r"${path.join(backendDir, 'src')}")
-import db
+    const pyExe = getPythonExecutable(backendDir);
+    const cliScript = path.join(backendDir, 'src', 'db_cli.py');
 
-cmd = r"${commandType}"
-payload_str = r'''${JSON.stringify(payload)}'''
-payload = json.loads(payload_str) if payload_str else {}
-
-if cmd == "list":
-    status_filter = payload.get("status", "")
-    res = db.list_all_escalations(status_filter)
-    print(json.dumps({"success": True, "tickets": res}))
-elif cmd == "resolve":
-    ticket_id = payload.get("ticket_id")
-    notes = payload.get("resolution_notes", "Resolved from Emergency Dashboard")
-    res = db.update_escalation_status(ticket_id, "RESOLVED", notes)
-    import outbound_call, asyncio
-    asyncio.run(outbound_call.trigger_resolution_callback(ticket_id=ticket_id, caller_name=res.get("caller_name",""), location=res.get("location",""), resolution_notes=notes))
-    print(json.dumps({"success": True, "ticket": res}))
-else:
-    print(json.dumps({"success": False, "error": "Unknown command"}))
-`;
-
-    const output = execSync(`"${pyExe}" -c "${pyScript.replace(/"/g, '\\"')}"`, {
+    const { stdout } = await execFileAsync(pyExe, [cliScript, commandType, JSON.stringify(payload)], {
       encoding: 'utf-8',
       cwd: backendDir,
       timeout: 10000,
     });
-    return JSON.parse(output.trim());
+    const result = JSON.parse(stdout.trim());
+
+    if (commandType === 'list' && result.success) {
+      escalationsCache = { timestamp: Date.now(), key: cacheKey, data: result };
+    }
+
+    return result;
   } catch (err: any) {
     console.error('Error running Python DB script:', err?.stdout || err?.message);
     return { success: false, tickets: [], error: String(err) };
@@ -49,16 +55,17 @@ else:
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') || '';
-  const result = runPyDbCommand('list', { status });
+  const result = await runPyDbCommand('list', { status });
   return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    escalationsCache = null; // Invalidate cache on status updates
     const { action, ticket_id, resolution_notes } = body;
     if (action === 'resolve' && ticket_id) {
-      const result = runPyDbCommand('resolve', { ticket_id, resolution_notes });
+      const result = await runPyDbCommand('resolve', { ticket_id, resolution_notes });
       return NextResponse.json(result);
     }
     return NextResponse.json({ success: false, error: 'Invalid action or missing ticket_id' }, { status: 400 });
@@ -66,3 +73,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+

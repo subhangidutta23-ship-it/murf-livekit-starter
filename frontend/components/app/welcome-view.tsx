@@ -3,8 +3,17 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DisasterAvatar } from '@/components/app/disaster-avatar';
-import { AgentStateIndicator } from '@/components/app/agent-state-indicator';
-import { ShieldAlert, PhoneCall, Waves, Sun, HeartHandshake, HelpCircle, Globe } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ShieldAlert,
+  PhoneCall,
+  Waves,
+  Sun,
+  HeartHandshake,
+  BarChart3,
+  Activity,
+  Phone,
+} from 'lucide-react';
 
 interface WelcomeViewProps {
   startButtonText: string;
@@ -15,112 +24,250 @@ interface WelcomeViewProps {
 export const WelcomeView = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'> & WelcomeViewProps>(
   ({ startButtonText, onStartCall }, ref) => {
     return (
-      <div ref={ref} className="relative z-10 w-full max-w-2xl mx-auto px-4 pt-12 md:pt-16 pb-8 flex flex-col items-center text-center">
+      <div
+        ref={ref}
+        className="relative z-10 w-full min-h-screen flex flex-col items-center justify-between text-slate-900 overflow-x-hidden selection:bg-sky-500/30 select-none pb-8"
+      >
+        {/* Header Navigation Bar */}
+        <header className="w-full max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between border-b border-slate-200/80 backdrop-blur-md bg-white/70 sticky top-9 z-40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-emerald-600 p-[1.5px] shadow-md">
+              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                <span className="text-lg">🇮🇳</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm md:text-base tracking-tight text-slate-900">
+                  Sentinel<span className="text-sky-600 font-normal">Command</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-[10px] font-mono font-bold text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  LIVE RELAY
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-500">
+                Voice for Bharat • राष्ट्रीय आपदा कमान केंद्र
+              </p>
+            </div>
+          </div>
 
-        {/* Voice for Bharat Emergency Top Badge */}
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/80 bg-white/95 dark:bg-slate-900/95 px-4 py-1.5 text-xs font-mono font-bold tracking-widest text-slate-800 dark:text-slate-200 uppercase shadow-lg backdrop-blur-md">
-          <span className="text-base">🇮🇳</span>
-          <span className="bg-gradient-to-r from-amber-600 via-blue-900 to-emerald-700 dark:from-amber-400 dark:via-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">
-            VOICE FOR BHARAT
-          </span>
-          <span className="text-slate-300 dark:text-slate-700">•</span>
-          <span className="text-emerald-700 dark:text-emerald-400 font-sans">राष्ट्रीय आपदा कमांड</span>
-        </div>
+          {/* Quick Header Nav Options */}
+          <div className="flex items-center gap-2.5">
+            <Link href="/dashboard" className="hidden sm:block">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-300 bg-white/90 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-mono text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs"
+              >
+                <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-sky-600" />
+                <span>Call Metrics</span>
+              </Button>
+            </Link>
+            <Link href="/escalations" className="hidden sm:block">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100 font-mono text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs"
+              >
+                <Activity className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                <span>Dispatch Dashboard</span>
+              </Button>
+            </Link>
+          </div>
+        </header>
 
-        {/* Hero Disaster Avatar */}
-        <div className="mb-5">
-          <DisasterAvatar state="ready" size="lg" />
-        </div>
+        {/* Main Center Content */}
+        <main className="w-full max-w-5xl mx-auto px-4 py-8 md:py-12 flex-1 flex flex-col items-center justify-center text-center space-y-6">
+          
+          {/* Top Category Pill Badge */}
+          <div className="inline-flex flex-col items-center px-4 py-1.5 rounded-full border border-amber-300/90 bg-white/95 shadow-sm text-xs font-mono font-bold tracking-wide">
+            <span className="text-slate-800">IN <span className="text-amber-600 font-extrabold">VOICE FOR BHARAT</span></span>
+            <span className="text-[10px] text-emerald-700 font-sans font-medium">राष्ट्रीय आपदा कमांड</span>
+          </div>
 
-        {/* Hero Title & Purpose */}
-        <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight leading-snug max-w-xl">
-          Sentinel AI Emergency & Relief Assistant
-        </h1>
-        <p className="mt-1.5 text-xs md:text-sm font-semibold text-amber-700 dark:text-amber-400 tracking-wide font-sans">
-          वॉइस फॉर भारत • आपदा राहत एवं आपातकालीन सहायता प्रणाली
-        </p>
-        <p className="mt-2.5 text-xs md:text-base text-slate-700 dark:text-slate-300 max-w-prose leading-relaxed font-medium">
-          Report flood emergencies, request drought relief, locate shelters, or check family safety hands-free. You can talk directly with the agent.
-        </p>
+          {/* Perfectly Centered Sentinel Robot Avatar */}
+          <div className="w-full flex items-center justify-center my-3 group">
+            <div className="transform group-hover:scale-105 transition-transform duration-300 flex items-center justify-center">
+              <DisasterAvatar state="ready" size="lg" />
+            </div>
+          </div>
 
-        {/* Indian Helpline Emergency Bar */}
-        <div className="my-2 w-full max-w-lg rounded-xl border border-amber-300/80 bg-gradient-to-r from-amber-500/10 via-sky-500/10 to-emerald-500/10 dark:from-amber-900/20 dark:via-blue-900/20 dark:to-emerald-900/20 px-3 py-2 text-[11px] md:text-xs font-mono font-bold text-slate-800 dark:text-slate-200 flex items-center justify-around shadow-sm">
-          <span>🚨 Helpline: <strong>112</strong></span>
-          <span className="text-slate-300">|</span>
-          <span>🌊 NDRF: <strong>1078</strong></span>
-          <span className="text-slate-300">|</span>
-          <span>🚑 Medical: <strong>108</strong></span>
-        </div>
+          {/* Main Title & Hindi Subheading */}
+          <div className="space-y-1.5 max-w-3xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
+              Sentinel AI Emergency & Relief Assistant
+            </h1>
+            <p className="text-xs sm:text-sm font-semibold text-amber-600 tracking-wide font-sans">
+              वॉइस फॉर भारत • आपदा राहत एवं आपातकालीन सहायता प्रणाली
+            </p>
+            <p className="text-slate-600 text-sm md:text-base leading-relaxed max-w-2xl mx-auto font-normal pt-1">
+              Report flood emergencies, request drought relief, locate shelters, or check family safety hands-free. You can talk directly with the agent.
+            </p>
+          </div>
 
-        {/* Capability Cards Grid with Center-Aligned Hindi & English Text */}
-        <div className="my-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full max-w-xl">
-          {/* Card 1: Flood Alerts */}
-          <div className="flex flex-col items-center justify-center text-center rounded-xl border border-blue-200/80 dark:border-blue-800 bg-white/95 dark:bg-slate-900/95 p-3 shadow-sm hover:shadow-md transition-all duration-200">
-            <Waves size={18} className="text-blue-600 dark:text-blue-400 mb-1 shrink-0" />
-            <span className="text-xs font-bold text-blue-900 dark:text-blue-200 leading-tight text-center">
-              Flood Alerts
+          {/* Emergency Hotlines Pill */}
+          <div className="px-5 py-2 rounded-full border border-amber-200/90 bg-white/95 shadow-md backdrop-blur-md flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-slate-700">
+            <span className="flex items-center gap-1.5 text-rose-600 font-bold">
+              <Phone className="w-3.5 h-3.5" /> Helpline: <strong className="text-slate-900 font-extrabold">112</strong>
             </span>
-            <span className="text-[11px] font-sans font-medium text-slate-600 dark:text-slate-400 mt-1 text-center w-full block">
-              बाढ़ चेतावनी
+            <span className="text-slate-300">•</span>
+            <span className="flex items-center gap-1.5 text-sky-600 font-bold">
+              <Waves className="w-3.5 h-3.5" /> NDRF: <strong className="text-slate-900 font-extrabold">1078</strong>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
+              <ShieldAlert className="w-3.5 h-3.5" /> Medical: <strong className="text-slate-900 font-extrabold">108</strong>
             </span>
           </div>
 
-          {/* Card 2: Drought Relief */}
-          <div className="flex flex-col items-center justify-center text-center rounded-xl border border-amber-200/80 dark:border-amber-800 bg-white/95 dark:bg-slate-900/95 p-3 shadow-sm hover:shadow-md transition-all duration-200">
-            <Sun size={18} className="text-amber-600 dark:text-amber-400 mb-1 shrink-0" />
-            <span className="text-xs font-bold text-amber-900 dark:text-amber-200 leading-tight text-center">
-              Drought Relief
-            </span>
-            <span className="text-[11px] font-sans font-medium text-slate-600 dark:text-slate-400 mt-1 text-center w-full block">
-              सूखा राहत
-            </span>
+          {/* 4 Feature Service Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 w-full max-w-4xl pt-4">
+            
+            {/* Card 1: Flood Alerts */}
+            <Link href="/services/flood-alerts" className="w-full">
+              <div className="p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-blue-400 transition-all duration-300 flex flex-col items-center text-center space-y-2 group cursor-pointer h-full">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                  <Waves className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                    Flood Alerts
+                  </h3>
+                  <p className="text-[11px] text-amber-600 font-sans font-medium">
+                    बाढ़ चेतावनी
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Card 2: Drought Relief */}
+            <Link href="/services/drought-relief" className="w-full">
+              <div className="p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-amber-400 transition-all duration-300 flex flex-col items-center text-center space-y-2 group cursor-pointer h-full">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+                  <Sun className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+                    Drought Relief
+                  </h3>
+                  <p className="text-[11px] text-amber-600 font-sans font-medium">
+                    सूखा राहत
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Card 3: Relief Shelters */}
+            <Link href="/services/relief-shelters" className="w-full">
+              <div className="p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-emerald-400 transition-all duration-300 flex flex-col items-center text-center space-y-2 group cursor-pointer h-full">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                    Relief Shelters
+                  </h3>
+                  <p className="text-[11px] text-amber-600 font-sans font-medium">
+                    राहत शिविर एवं बेड
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Card 4: Welfare Check */}
+            <Link href="/services/welfare-check" className="w-full">
+              <div className="p-4 rounded-2xl bg-white/90 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-sky-400 transition-all duration-300 flex flex-col items-center text-center space-y-2 group cursor-pointer h-full">
+                <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
+                  <HeartHandshake className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                    Welfare Check
+                  </h3>
+                  <p className="text-[11px] text-amber-600 font-sans font-medium">
+                    सुरक्षा चेक-इन
+                  </p>
+                </div>
+              </div>
+            </Link>
+
           </div>
 
-          {/* Card 3: Relief Shelters */}
-          <div className="flex flex-col items-center justify-center text-center rounded-xl border border-emerald-200/80 dark:border-emerald-800 bg-white/95 dark:bg-slate-900/95 p-3 shadow-sm hover:shadow-md transition-all duration-200">
-            <ShieldAlert size={18} className="text-emerald-600 dark:text-emerald-400 mb-1 shrink-0" />
-            <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 leading-tight text-center">
-              Relief Shelters
-            </span>
-            <span className="text-[11px] font-sans font-medium text-slate-600 dark:text-slate-400 mt-1 text-center w-full block">
-              राहत शिविर एवं बेड
-            </span>
+          {/* Call Action Section */}
+          <div className="pt-4 flex flex-col items-center space-y-3 w-full max-w-lg">
+            {/* Ready Status Pill */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-mono font-bold shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>SENTINEL ROBOT READY</span>
+            </div>
+
+            <p className="text-xs text-slate-500 font-medium">
+              Sentinel Robot online. Click below to begin disaster report.
+            </p>
+
+            {/* Big Gradient Call Button with Hindi Text Below English in Smaller Font Size */}
+            <Button
+              size="lg"
+              onClick={onStartCall}
+              className="w-full rounded-full bg-gradient-to-r from-amber-500 via-teal-600 to-sky-600 hover:from-amber-600 hover:to-sky-700 text-white shadow-xl shadow-teal-600/20 py-7 px-8 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border border-white/40 cursor-pointer"
+            >
+              <div className="flex items-center justify-center gap-3">
+                <PhoneCall className="h-5 w-5 text-white animate-bounce shrink-0" />
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider uppercase">
+                    START EMERGENCY CALL
+                  </span>
+                  <span className="text-[11px] font-sans font-normal opacity-90 tracking-normal text-sky-100">
+                    आपातकालीन कॉल
+                  </span>
+                </div>
+              </div>
+            </Button>
+
+            {/* Mobile Nav Links */}
+            <div className="flex sm:hidden items-center gap-2 pt-2 w-full">
+              <Link href="/dashboard" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-slate-300 bg-white text-slate-700 font-mono text-xs py-2 rounded-xl"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 mr-1 text-sky-600" />
+                  Metrics
+                </Button>
+              </Link>
+              <Link href="/escalations" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-amber-300 bg-amber-50 text-amber-900 font-mono text-xs py-2 rounded-xl"
+                >
+                  <Activity className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                  Dispatch
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          {/* Card 4: Welfare Check */}
-          <div className="flex flex-col items-center justify-center text-center rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white/95 dark:bg-slate-900/95 p-3 shadow-sm hover:shadow-md transition-all duration-200">
-            <HeartHandshake size={18} className="text-sky-600 dark:text-sky-400 mb-1 shrink-0" />
-            <span className="text-xs font-bold text-sky-900 dark:text-sky-200 leading-tight text-center">
-              Welfare Check
-            </span>
-            <span className="text-[11px] font-sans font-medium text-slate-600 dark:text-slate-400 mt-1 text-center w-full block">
-              सुरक्षा चेक-इन
-            </span>
+        </main>
+
+        {/* Footer */}
+        <footer className="w-full max-w-7xl mx-auto px-4 md:px-8 pt-4 pb-2 border-t border-slate-200/80 text-xs font-mono text-slate-500 flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span>Voice for Bharat • National Disaster Relief Command System</span>
           </div>
-        </div>
-
-        {/* Ready State Indicator */}
-        <AgentStateIndicator state="ready" className="mb-3" />
-
-        {/* ONE Clear Primary Start Button */}
-        <Button
-          size="lg"
-          onClick={onStartCall}
-          className="mt-2 w-full max-w-xl rounded-full bg-gradient-to-r from-amber-600 via-emerald-600 to-sky-700 hover:from-amber-500 hover:to-sky-600 text-white font-mono text-xs md:text-sm font-extrabold tracking-wider uppercase shadow-2xl shadow-emerald-600/30 px-6 sm:px-8 py-7 transition-all duration-300 hover:scale-[1.03] active:scale-95 border border-white/30"
-        >
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            <PhoneCall className="h-5 w-5 shrink-0 animate-bounce [animation-duration:2s]" />
-            <span>START EMERGENCY CALL</span>
-            <span className="opacity-60 font-normal">•</span>
-            <span className="font-sans text-xs md:text-sm font-bold normal-case tracking-normal">आपातकालीन कॉल</span>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="hover:text-slate-900 transition-colors">
+              Call Metrics
+            </Link>
+            <span className="text-slate-300">•</span>
+            <Link href="/escalations" className="hover:text-slate-900 transition-colors">
+              Dispatch Dashboard
+            </Link>
           </div>
-        </Button>
+        </footer>
 
-        {/* Footer info */}
-        <div className="mt-6 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center justify-center gap-1">
-          <HelpCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-          <span>Hands-free voice active. Click above to start talking with the agent.</span>
-        </div>
       </div>
     );
   }
