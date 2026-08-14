@@ -30,7 +30,7 @@
 
 ---
 
-### 🚨 Day 7 — Human Rescue Escalation & Webhook System
+### 🚨 Human Rescue Escalation & Webhook System
 - **🚨 Human Help Escalation Tool (`create_escalation`)**: Automatically triggers when callers report being trapped, injured, or needing urgent physical rescue.
 - **🛡️ Strict Two-Turn Verbal Consent Flow**: Sentinel NEVER sends user information without first stating what will be sent and asking for explicit verbal permission out loud (`permission_granted=True`).
 - **🔒 Sensitive PII Redaction (`sanitize_summary`)**: Automatically sanitizes private sensitive details (phone numbers, email addresses, national IDs / Aadhaar / SSNs, credit card numbers, passwords/PINs) before storage or dispatcher notification.
@@ -40,7 +40,7 @@
 
 ---
 
-### 📊 Day 8 — Call Session Analytics & Disaster Intelligence Portal
+### 📊 Call Session Analytics & Disaster Intelligence Portal
 - **📊 Real-Time Call Session Recording & Metrics Dashboard (`/dashboard`)**:
   - **Circular SVG Success Rate Gauge**: Dynamic green progress arc reflecting call success percentage against a red base track indicator for failed calls.
   - **Core KPI Cards**: Total Calls, Successful Calls (verified info provided or ticket created), Failed Calls (early drop-offs), and Success Rate %.
@@ -53,7 +53,7 @@
 
 ---
 
-### 🏢 Day 9 — Specialized Multi-Agent Handoff System & Shelter Information Specialist
+### 🏢 Specialized Multi-Agent Handoff System & Shelter Information Specialist
 - **🏢 Specialized Sub-Agent Architecture (`ShelterInformationSpecialist`)**: Dedicated expert agent for disaster relief shelter queries, real-time available capacity, facilities, pet policies, medical care facilities, check-in rules, and spatial directions.
 - **🔄 Dynamic Context-Preserving Agent Handoff (`transfer_to_shelter_specialist` & `transfer_to_main_agent`)**: Context-aware handoff tools using LiveKit `session.update_agent()` for seamless bidirectional switching between Sentinel Main Command and Shelter Specialist while preserving caller context and conversation history.
 - **🗣️ Immediate Out-Loud Takeover Speech Engine**: Upon handoff, the Shelter Specialist instantly synthesizes and speaks live shelter status and available bed details directly to the user over Murf TTS via `context.session.say()`.
