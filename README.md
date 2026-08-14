@@ -218,6 +218,11 @@ uv run python src/test_call_recording.py
 
 ### Test Coverage Summary
 
+- `tests/test_shelter_specialist_handoff.py`: Multi-agent handoff unit test suite verifying Path 1 (direct main agent response) vs Path 2 (handoff to Shelter Specialist).
+- `tests/test_full_handoff_say.py`: Unit test verifying specialist out-loud TTS speech takeover upon agent handoff.
+- `tests/test_gemini.py`: Test suite verifying Google Gemini LLM chat stream responses.
+- `tests/test_murf_tts.py`: Test script for verifying Murf Falcon TTS streaming integration.
+- `scratch/test_handoff_behavior.py`: Agent session handoff verification script.
 - `src/test_call_recording.py`: Verification of call session recording, status classification (`SUCCESS` / `FAILED`), duration logging, and metrics computation.
 - `tests/test_both_paths.py`: Integration test verifying normal conversation path vs. emergency human escalation path with consent vs. permission refusal.
 - `tests/test_day7_escalation.py`: Tests human escalation tickets, urgency classification (`LOW`, `MEDIUM`, `HIGH`, `EMERGENCY`), PII redaction, deduplication, and resolution callbacks.
@@ -226,14 +231,17 @@ uv run python src/test_call_recording.py
 - `tests/test_agent.py`: LLM-as-judge evaluations verifying agent friendliness, grounding, and harmful request refusals.
 
 ```text
-collected 17 items
+collected 24 items
 
-tests/test_agent.py ...                                                 [ 17%]
-tests/test_day7_escalation.py ..                                        [ 29%]
-tests/test_db.py .....                                                  [ 58%]
-tests/test_disaster_tools.py .......                                    [100%]
+scratch/test_handoff_behavior.py .                                       [  4%]
+src/test_db.py .....                                                     [ 25%]
+tests/test_agent.py ...                                                  [ 37%]
+tests/test_day7_escalation.py ..                                         [ 45%]
+tests/test_db.py .....                                                   [ 66%]
+tests/test_disaster_tools.py .......                                     [ 95%]
+tests/test_shelter_specialist_handoff.py .                               [100%]
 
-============================= 17 passed in 19.3s =============================
+============================= 24 passed in 40.27s =============================
 ```
 
 ---
@@ -244,8 +252,10 @@ tests/test_disaster_tools.py .......                                    [100%]
 murf-livekit-starter/
 ├── backend/
 │   ├── caller_data.db        # SQLite database for persistent caller profiles, escalation tickets & call records
+│   ├── scratch/
+│   │   └── test_handoff_behavior.py # Agent session handoff verification script
 │   ├── src/
-│   │   ├── agent.py          # Sentinel Agent entrypoint, escalation tools & LiveKit session runner
+│   │   ├── agent.py          # Sentinel Agent & Shelter Specialist entrypoint, escalation tools & LiveKit session runner
 │   │   ├── db.py             # SQLite persistence, caller profiles, escalation tickets, call recording & metrics
 │   │   ├── db_cli.py         # Command-line JSON interface bridge for Next.js API routes
 │   │   ├── disaster_data.py  # Open-Meteo API integrations, Haversine math, & out-loud error handler
@@ -253,11 +263,15 @@ murf-livekit-starter/
 │   │   ├── prompt.py         # System prompt, Sentinel identity, consent rules & escalation mandates
 │   │   └── test_call_recording.py # Call recording & metrics verification script
 │   └── tests/
-│       ├── test_agent.py          # LLM-as-judge evaluation suite
-│       ├── test_both_paths.py     # Dual-path verification (Normal vs. Escalation path)
-│       ├── test_day7_escalation.py # Escalation ticket, PII & callback unit tests
-│       ├── test_db.py             # Database & permission unit tests
-│       └── test_disaster_tools.py # Disaster tools & network failure unit tests
+│       ├── test_agent.py                  # LLM-as-judge evaluation suite
+│       ├── test_both_paths.py             # Dual-path verification (Normal vs. Escalation path)
+│       ├── test_day7_escalation.py         # Escalation ticket, PII & callback unit tests
+│       ├── test_db.py                     # Database & permission unit tests
+│       ├── test_disaster_tools.py         # Disaster tools & network failure unit tests
+│       ├── test_full_handoff_say.py       # Specialist out-loud TTS speech takeover test
+│       ├── test_gemini.py                 # Google Gemini LLM model integration test
+│       ├── test_murf_tts.py               # Murf Falcon TTS streaming test
+│       └── test_shelter_specialist_handoff.py # Multi-Agent Shelter Specialist handoff unit tests
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx               # Main Voice Assistant page
