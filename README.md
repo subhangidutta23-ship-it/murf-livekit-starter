@@ -53,6 +53,15 @@
 
 ---
 
+### 🏢 Day 9 — Specialized Multi-Agent Handoff System & Shelter Information Specialist
+- **🏢 Specialized Sub-Agent Architecture (`ShelterInformationSpecialist`)**: Dedicated expert agent for disaster relief shelter queries, real-time available capacity, facilities, pet policies, medical care facilities, check-in rules, and spatial directions.
+- **🔄 Dynamic Context-Preserving Agent Handoff (`transfer_to_shelter_specialist` & `transfer_to_main_agent`)**: Context-aware handoff tools using LiveKit `session.update_agent()` for seamless bidirectional switching between Sentinel Main Command and Shelter Specialist while preserving caller context and conversation history.
+- **🗣️ Immediate Out-Loud Takeover Speech Engine**: Upon handoff, the Shelter Specialist instantly synthesizes and speaks live shelter status and available bed details directly to the user over Murf TTS via `context.session.say()`.
+- **🏷️ Dynamic Frontend UI Avatar Handoff Switching**: Real-time DataPacket payload (`AGENT_HANDOFF`) sent to frontend, triggering instant visual avatar card switching (Sentinel Robot card $\leftrightarrow$ Shelter Specialist green badge card) on the browser console (`tile-view.tsx` & `view-controller.tsx`).
+- **🧹 Caller Memory Deletion (`forget_caller`)**: Secure caller memory wipe tool allowing callers to permanently delete their stored records and PII from the SQLite database upon request.
+
+---
+
 ## 🏗️ Architecture & Pipeline
 
 ```

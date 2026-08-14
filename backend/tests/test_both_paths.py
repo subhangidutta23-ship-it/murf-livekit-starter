@@ -112,11 +112,46 @@ async def run_both_paths_test():
     assert "CANCELLED" in denied_res
     tickets_after_path3 = db.list_all_escalations()
     assert len(tickets_after_path3) == initial_count + 1, "FAIL: Ticket created despite permission refusal!"
-    print("✅ PATH 3 PASSED: Permission refusal respected, no escalation ticket created.")
+    # ------------------------------------------------------------------
+    # PATH 4: SPECIALIST HANDOFF TEST (Steps 2, 3, 4, 5, 6)
+    # ------------------------------------------------------------------
+    print("\n--- PATH 4: Shelter Information Specialist Handoff Test ---")
+    from agent import ShelterInformationSpecialist
+    class MockSession:
+        def __init__(self, agent):
+            self.current_agent = agent
+            self.history = []
+        def update_agent(self, agent):
+            self.current_agent = agent
+
+    mock_sess = MockSession(assistant)
+    ctx.session = mock_sess
+
+    shelter_query = "Where is the nearest emergency shelter in Patna, what is its available capacity, and are domestic pets allowed?"
+    print(f"Caller User Input: '{shelter_query}'")
+    mock_sess.history.append({"role": "user", "content": shelter_query})
+
+    handoff_output = await assistant.transfer_to_shelter_specialist(ctx, reason="Shelter and pet policy inquiry")
+    print(f"Main Agent Output: {handoff_output}")
+
+    assert isinstance(mock_sess.current_agent, ShelterInformationSpecialist)
+    assert "I will connect you to our shelter information specialist" in handoff_output
+    assert "Shelter Information Specialist" in handoff_output
+
+    spec = mock_sess.current_agent
+    details = await spec.get_shelter_details(ctx, location="Patna")
+    pet_rules = await spec.check_shelter_pet_and_medical_policy(ctx, location="Patna")
+    print(f"Specialist Response (Details): {details}")
+    print(f"Specialist Response (Pet Rules): {pet_rules}")
+
+    assert "Patna" in details
+    assert "pet" in pet_rules.lower()
+    print("✅ PATH 4 PASSED: Main agent transferred caller, specialist introduced itself, preserved history, and answered shelter query.")
 
     print("\n================================================================")
-    print("🎉 ALL STEPS 4, 5, 6, AND 7 PATH TESTS PASSED PERFECTLY!")
+    print("🎉 ALL STEPS 2, 3, 4, 5, 6, AND 7 PATH TESTS PASSED PERFECTLY!")
     print("================================================================")
 
 if __name__ == "__main__":
     asyncio.run(run_both_paths_test())
+

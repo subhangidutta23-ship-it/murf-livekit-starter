@@ -72,12 +72,17 @@ async def trigger_resolution_callback(
     caller_name: str = "",
     location: str = "",
     resolution_notes: str = "",
+    is_browser: bool = False,
 ) -> bool:
     """
     Trigger an outbound resolution callback call to inform the caller that their request ticket_id has been resolved.
     """
     print(f"📞 [OUTBOUND RESOLUTION CALLBACK] Initiating resolution call for Ticket '{ticket_id}' (Caller: {caller_name}, Location: {location})...")
     print(f"   Notes: {resolution_notes}")
+
+    if is_browser:
+        print(f"ℹ️ [OUTBOUND CALLBACK SKIPPED] Session is browser-based. Resolution for Ticket '{ticket_id}' logged locally in browser session.")
+        return True
 
     if not LIVEKIT_URL or not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
         print("[OUTBOUND RESOLUTION CALLBACK] LiveKit API credentials not fully configured in environment; resolution callback logged locally.")

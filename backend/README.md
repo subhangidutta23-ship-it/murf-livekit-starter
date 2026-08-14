@@ -29,11 +29,11 @@
 - **📋 Live Emergency Dispatcher Dashboard & Webhooks (Step 5)**: Real-time Next.js Dashboard (`/escalations`) and API route (`/api/escalations`) displaying open requests, urgency badges, sanitized summaries, and dispatch action controls. Supports HTTP POST webhooks to Discord, Slack, or custom APIs.
 - **🏷️ Clear Reference IDs & Next Steps (Step 6)**: Returns a unique Reference ID (e.g. `ESC-62352`), explains next steps, and tracks dispatch status without making false immediate arrival promises.
 - **📞 Outbound Resolution Callbacks**: Automatically places an automated LiveKit SIP outbound call to inform callers when their request status is updated to `RESOLVED`.
-- **🌊 Real-Time District Flood & Weather Alerts**: Live river discharge monitoring ($m^3/s$), precipitation rates, and severe weather advisories powered by Open-Meteo Flood & Weather APIs.
-- **🏥 Spatial Emergency Shelter Search**: Nearest shelter distance computation using the Haversine formula, total bed capacity, occupancy tracking, and real-time available capacity calculation.
-- **📢 Out-Loud Network Failure Resilience**: Strict 3.0-second network timeout protection. Spoken fallback alerts with cached offline emergency protocols during degraded connectivity or offline status.
-- **🕒 Explicit Data Timestamping**: Every alert and shelter status update states exact observation date & time in spoken English words (`August tenth, twenty twenty-six at sixteen hours UTC`) so callers know data freshness.
-- **🗣️ Spoken Number Formatting**: Automatically converts numeric outputs into spoken words (e.g. `2.1` $\to$ `two point one`, `500` $\to$ `five hundred`) for natural TTS streaming.
+- **🏢 Day 9 — Specialized Multi-Agent Handoff System (`ShelterInformationSpecialist`)**: Dedicated expert agent for disaster relief shelter queries, real-time available capacity, facilities, pet policies, medical care facilities, check-in rules, and spatial directions.
+- **🔄 Dynamic Context-Preserving Agent Handoff (`transfer_to_shelter_specialist` & `transfer_to_main_agent`)**: Context-aware handoff tools using LiveKit `session.update_agent()` for seamless bidirectional switching between Sentinel Main Command and Shelter Specialist while preserving caller context and conversation history.
+- **🗣️ Immediate Out-Loud Takeover Speech Engine**: Upon handoff, the Shelter Specialist instantly synthesizes and speaks live shelter status and available bed details directly to the user over Murf TTS via `context.session.say()`.
+- **🏷️ Dynamic Frontend UI Avatar Handoff Switching**: Real-time DataPacket payload (`AGENT_HANDOFF`) sent to frontend, triggering instant visual avatar card switching (Sentinel Robot card $\leftrightarrow$ Shelter Specialist green badge card) on the browser console (`tile-view.tsx` & `view-controller.tsx`).
+- **🧹 Caller Memory Deletion (`forget_caller`)**: Secure caller memory wipe tool allowing callers to permanently delete their stored records and PII from the SQLite database upon request.
 
 ---
 

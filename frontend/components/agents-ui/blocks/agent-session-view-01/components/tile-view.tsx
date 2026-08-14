@@ -72,7 +72,7 @@ export function TileLayout({
   audioVisualizerGridColumnCount,
   audioVisualizerWaveLineWidth,
 }: TileLayoutProps) {
-  const { videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const { videoTrack: agentVideoTrack, agentTranscriptions } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
   const { state: agentState } = useAgent();
@@ -96,6 +96,18 @@ export function TileLayout({
       : agentState === 'connecting' || agentState === 'initializing'
       ? 'connecting'
       : 'ready';
+
+  const latestAgentText = agentTranscriptions && agentTranscriptions.length > 0
+    ? agentTranscriptions[agentTranscriptions.length - 1]?.text || ''
+    : '';
+
+  const isShelterSpecialistActive =
+    latestAgentText.toLowerCase().includes('shelter information specialist') ||
+    latestAgentText.toLowerCase().includes('shelter specialist') ||
+    latestAgentText.toLowerCase().includes('connect you to our shelter') ||
+    latestAgentText.toLowerCase().includes('shelter policy');
+
+  const activeAgentRole = isShelterSpecialistActive ? 'shelter_specialist' : 'main';
 
   return (
     <div className="relative w-full h-full min-h-[260px] flex items-center justify-center">
@@ -146,9 +158,9 @@ export function TileLayout({
                       style={{ color: audioVisualizerColor || '#2563eb' }}
                     />
                   ) : (
-                    // Robot Avatar by default instead of white dots
+                    // Agent Avatar with Main Command (Robot) vs Shelter Specialist (Emergency Tent) support
                     <div className={cn('transition-all duration-300', chatOpen && 'scale-75')}>
-                      <DisasterAvatar state={currentAgentState} size="lg" />
+                      <DisasterAvatar state={currentAgentState} size="lg" agentRole={activeAgentRole} allowToggle={true} />
                     </div>
                   )}
                 </motion.div>

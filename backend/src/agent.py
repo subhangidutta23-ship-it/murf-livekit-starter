@@ -7,8 +7,6 @@ import re
 from datetime import datetime, timezone
 import httpx
 
-
-
 from dotenv import load_dotenv, find_dotenv
 from livekit import rtc
 from livekit.agents import (
@@ -30,7 +28,7 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 import db
 import disaster_data
 import outbound_call
-from prompt import SYSTEM_PROMPT, ESCALATION_MANDATE
+from prompt import SYSTEM_PROMPT, ESCALATION_MANDATE, SHELTER_SPECIALIST_PROMPT
 
 logger = logging.getLogger("agent")
 
@@ -46,6 +44,96 @@ HINDI_KEYWORDS = [
 ]
 
 
+# =====================================================================
+# STEP 2: SHELTER INFORMATION SPECIALIST AGENT
+# =====================================================================
+class ShelterInformationSpecialist(Agent):
+    """
+    Specialist agent for disaster relief shelter queries.
+    Speaks immediately on takeover via on_enter().
+    """
+
+    def __init__(
+        self,
+        instructions: str = SHELTER_SPECIALIST_PROMPT,
+        call_context: Optional[dict] = None,
+        location: str = "Guwahati",
+    ) -> None:
+        super().__init__(instructions=instructions)
+        self.call_context = call_context if call_context is not None else {}
+        self.name = "Shelter Information Specialist"
+        self.location = location
+
+    async def on_enter(self) -> None:
+        logger.info(f"🏢 [SPECIALIST ACTIVE] Shelter Specialist activated for '{self.location}'")
+
+    @function_tool
+    async def get_shelter_details(
+        self,
+        context: RunContext,
+        location: str,
+        resource_needed: str = "all",
+    ) -> str:
+        """Fetch nearest emergency relief shelters, exact addresses, and real-time capacity."""
+        logger.info(f"[Shelter Specialist] Fetching shelter details for '{location}'")
+        return disaster_data.compute_nearest_shelters(location=location, resource_needed=resource_needed)
+
+    @function_tool
+    async def check_shelter_pet_and_medical_policy(
+        self,
+        context: RunContext,
+        location: str = "",
+    ) -> str:
+        """Check shelter pet acceptance rules and on-site medical treatment facilities."""
+        return (
+            "Shelter Policy Information: All official emergency relief shelters accept domestic pets and service animals "
+            "in designated pet-friendly areas with food and water provided. On-site medical services include first aid stations, "
+            "emergency medical beds, and 24/7 on-call physicians."
+        )
+
+    @function_tool
+    async def check_shelter_check_in_rules(
+        self,
+        context: RunContext,
+    ) -> str:
+        """Check shelter check-in policies, cost, and identification requirements."""
+        return (
+            "Shelter Check-In Rules: Emergency shelters operate 24 hours a day, 7 days a week, and are completely free of charge. "
+            "Verbal identification is accepted; no mandatory documentation is required if lost during evacuation."
+        )
+
+    @function_tool
+    async def transfer_to_main_agent(
+        self,
+        context: RunContext,
+        reason: str = "User asked general emergency question or requested main command",
+    ) -> None:
+        """Transfer the conversation back to the Main Emergency Command Agent (Sentinel)."""
+        logger.info(f"[Handoff Back] Returning to Main Agent. Reason: '{reason}'")
+        main_agent = Assistant(instructions=SYSTEM_PROMPT, call_context=self.call_context)
+
+        # Notify UI to switch back
+        if hasattr(context.session, "room") and context.session.room:
+            try:
+                payload = json.dumps({"type": "AGENT_HANDOFF", "agent": "main", "title": "Sentinel Emergency Command"})
+                await context.session.room.local_participant.publish_data(payload.encode("utf-8"), reliable=True)
+            except Exception as e:
+                logger.debug(f"Data packet publish skipped: {e}")
+
+        if hasattr(context.session, "update_agent"):
+            context.session.update_agent(main_agent)
+        if hasattr(context.session, "say"):
+            await context.session.say(
+                "I have transferred you back to Sentinel Emergency Command. How else can I assist you?",
+                allow_interruptions=True
+            )
+
+        return "Transferred back to Sentinel Emergency Command."
+
+
+# =====================================================================
+# MAIN TRIAGE AGENT (SENTINEL)
+# =====================================================================
 class Assistant(Agent):
     def __init__(self, instructions: str = SYSTEM_PROMPT, call_context: Optional[dict] = None) -> None:
         super().__init__(instructions=instructions)
@@ -66,7 +154,7 @@ class Assistant(Agent):
     ) -> str:
         """Fetch live real-time weather alerts and disaster advisory status."""
         global SHOULD_FAIL_ONCE
-        logger.info(f"[Day 5 Tool Call] Fetching telemetry for: '{location}'")
+        logger.info(f"[Weather Tool] Fetching telemetry for: '{location}'")
         now_time = datetime.now(timezone.utc).strftime("%I:%M %p UTC on %B %d, %Y")
 
         try:
@@ -127,7 +215,6 @@ class Assistant(Agent):
                 f"Please check local emergency broadcasts."
             )
 
-
     @function_tool
     async def opt_out_caller(self, context: RunContext) -> str:
         """Opt out caller from future automated disaster phone alerts."""
@@ -140,14 +227,14 @@ class Assistant(Agent):
         context: RunContext,
         identifier: str = "",
     ) -> str:
-        """Delete and wipe the caller's stored record from the database upon their explicit request."""
+        """Delete and wipe caller's stored record from database."""
         logger.info("Wiping stored caller data from SQLite database...")
         latest_record = db.get_latest_caller()
         target_id = identifier or (latest_record.get("user_id") if latest_record else "")
         
         if target_id:
             db.delete_caller(target_id)
-            return "SUCCESS: All your stored records and details have been permanently deleted from Sentinel database."
+            return "SUCCESS: All your stored records have been permanently deleted from Sentinel database."
         return "No active record was found in the database to delete."
 
     @function_tool
@@ -191,7 +278,7 @@ class Assistant(Agent):
         resource_needed: str = "all",
     ) -> str:
         """Find nearest emergency relief centers and shelters with capacity details."""
-        self.mark_successful(f"Caller received verified relief center and shelter details for {location}")
+        self.mark_successful(f"Caller received verified relief center details for {location}")
         return disaster_data.compute_nearest_shelters(location=location, resource_needed=resource_needed)
 
     @function_tool
@@ -232,24 +319,17 @@ class Assistant(Agent):
         preferred_contact: str = "Phone Call",
         permission_granted: bool = False,
     ) -> str:
-        """
-        STRICT MANDATORY CONSENT RULE: DO NOT CALL THIS TOOL ON TURN 1 WHEN A CALLER MENTIONS AN EMERGENCY!
-        You MUST FIRST verbally ask the caller out loud in Turn 1:
-        'To dispatch human emergency help, I need to share your name, location, and condition with our human disaster response team. May I have your permission to share these details?'
-        ONLY invoke this tool in Turn 2 AFTER the caller explicitly says YES / grants permission!
-        """
-        logger.info(f"[Day 7 Escalation Tool] Requested for '{caller_name}' (Urgency: {urgency_level}) - Consent: {permission_granted}")
+        """Create an emergency escalation ticket for human rescue teams."""
+        logger.info(f"[Escalation Tool] Requested for '{caller_name}' (Urgency: {urgency_level}) - Consent: {permission_granted}")
         
         if not permission_granted:
-            return "ESCALATION CANCELLED: Caller has not yet granted explicit permission to forward information to human rescue dispatchers. Ask for permission first!"
+            return "ESCALATION CANCELLED: Caller has not yet granted explicit permission. Ask for permission first!"
 
-        # Fetch saved caller record if available and matching caller_name for user_id mapping
         latest_record = db.get_latest_caller()
         user_id = ""
         if latest_record and (latest_record.get("name", "").strip().lower() == caller_name.strip().lower()):
             user_id = latest_record.get("user_id", "")
 
-        # Save ticket in SQLite database (handles PII sanitization and deduplication)
         ticket = db.save_escalation_request(
             user_id=user_id,
             caller_name=caller_name,
@@ -262,14 +342,8 @@ class Assistant(Agent):
 
         ref_id = ticket["ticket_id"]
         is_updated = ticket.get("is_updated", False)
-        status_action = "UPDATED existing open request" if is_updated else "CREATED new emergency escalation ticket"
-
         self.mark_successful(f"Human-help request created (Ticket Ref ID: {ref_id})", caller_name=caller_name)
 
-
-        logger.info(f"🚨 [HUMAN DISPATCH TICKET {status_action.upper()}] {ticket}")
-
-        # Send webhook notification if configured (supports Discord, Slack, Webhook.site, or custom APIs)
         webhook_url = os.getenv("WEBHOOK_URL") or os.getenv("DISASTER_WEBHOOK_URL") or os.getenv("DISCORD_WEBHOOK_URL")
         if webhook_url:
             async with httpx.AsyncClient() as client:
@@ -284,37 +358,16 @@ class Assistant(Agent):
                     "status": ticket["status"],
                     "preferred_contact": ticket["preferred_contact"],
                     "updated_at": ticket["updated_at"],
-                    "embeds": [{
-                        "title": f"🚨 Emergency Escalation Ticket: {ref_id} ({ticket['urgency_level']})",
-                        "color": 15158332 if ticket['urgency_level'] in ("EMERGENCY", "HIGH") else 3447003,
-                        "fields": [
-                            {"name": "Caller Name", "value": ticket['caller_name'], "inline": True},
-                            {"name": "Location", "value": ticket['location'] or "Not specified", "inline": True},
-                            {"name": "Urgency Level", "value": ticket['urgency_level'], "inline": True},
-                            {"name": "Status", "value": ticket['status'], "inline": True},
-                            {"name": "Issue", "value": ticket['issue_type'], "inline": False},
-                            {"name": "Sanitized Summary", "value": ticket['summary'], "inline": False},
-                            {"name": "Preferred Contact", "value": ticket['preferred_contact'], "inline": True},
-                        ],
-                        "footer": {"text": f"Logged at {ticket['updated_at']}"}
-                    }]
                 }
                 try:
                     await client.post(webhook_url, json=webhook_payload)
-                    logger.info(f"✅ [WEBHOOK NOTIFICATION SENT] Dispatched to {webhook_url}")
                 except Exception as e:
                     logger.error(f"Webhook post failed: {e}")
 
         if is_updated:
-            return (
-                f"SUCCESS: Updated existing open emergency ticket with Reference ID '{ref_id}' (Urgency: {ticket['urgency_level']}). "
-                f"Inform the caller that human dispatchers have received the updated details and emergency assistance is tracking their ticket."
-            )
+            return f"SUCCESS: Updated existing emergency ticket Ref ID '{ref_id}' (Urgency: {ticket['urgency_level']})."
         else:
-            return (
-                f"SUCCESS: Escalation ticket created successfully with Reference ID '{ref_id}' (Urgency: {ticket['urgency_level']}). "
-                f"Inform the caller that human dispatchers have received the ticket and will contact them shortly."
-            )
+            return f"SUCCESS: Escalation ticket created successfully with Reference ID '{ref_id}'."
 
     @function_tool
     async def check_escalation_status(
@@ -322,11 +375,7 @@ class Assistant(Agent):
         context: RunContext,
         identifier: str = "",
     ) -> str:
-        """
-        Check the status of an emergency escalation request (by Reference ID or caller name).
-        Returns request status: OPEN, IN_PROGRESS, or RESOLVED.
-        """
-        logger.info(f"[Escalation Status Query] Looking up status for: '{identifier}'")
+        """Check status of an emergency escalation request."""
         ticket = db.get_escalation(identifier)
         if not ticket:
             latest_caller = db.get_latest_caller()
@@ -336,22 +385,7 @@ class Assistant(Agent):
         if not ticket:
             return f"No emergency escalation request found for '{identifier}'."
 
-        ref_id = ticket["ticket_id"]
-        status = ticket["status"]
-        urgency = ticket["urgency_level"]
-        res_notes = ticket["resolution_notes"]
-
-        msg = f"Escalation Request '{ref_id}' for {ticket['caller_name']} is currently '{status}' with urgency level '{urgency}'."
-        if res_notes:
-            msg += f" Resolution notes: {res_notes}."
-        if status == "OPEN":
-            msg += " Human emergency dispatchers have received the request and are assigning response teams."
-        elif status == "IN_PROGRESS":
-            msg += " Emergency response teams have been dispatched to the location."
-        elif status == "RESOLVED":
-            msg += " The issue has been marked as resolved by emergency command."
-
-        return msg
+        return f"Escalation Request '{ticket['ticket_id']}' for {ticket['caller_name']} is currently '{ticket['status']}' with urgency '{ticket['urgency_level']}'."
 
     @function_tool
     async def resolve_escalation(
@@ -360,27 +394,79 @@ class Assistant(Agent):
         ticket_id: str,
         resolution_notes: str = "Issue resolved by emergency dispatch team.",
     ) -> str:
-        """
-        Mark an emergency escalation ticket as RESOLVED and trigger an automated resolution callback call to notify the caller.
-        """
-        logger.info(f"[Escalation Resolution] Resolving ticket '{ticket_id}' with notes: '{resolution_notes}'")
+        """Mark an emergency escalation ticket as RESOLVED."""
         updated = db.update_escalation_status(ticket_id, new_status="RESOLVED", resolution_notes=resolution_notes)
         if not updated:
             return f"Error: No escalation ticket found matching ID '{ticket_id}'."
 
-        # Trigger Day 6/7 outbound resolution callback to notify caller
-        asyncio.create_task(
-            outbound_call.trigger_resolution_callback(
-                ticket_id=updated["ticket_id"],
-                caller_name=updated["caller_name"],
-                location=updated["location"],
-                resolution_notes=resolution_notes,
+        if self.call_context.get("call_type") != "browser":
+            asyncio.create_task(
+                outbound_call.trigger_resolution_callback(
+                    ticket_id=updated["ticket_id"],
+                    caller_name=updated["caller_name"],
+                    location=updated["location"],
+                    resolution_notes=resolution_notes,
+                )
             )
+
+        return f"SUCCESS: Ticket '{updated['ticket_id']}' for {updated['caller_name']} has been marked as RESOLVED."
+
+    # =====================================================================
+    # STEP 3 & 4: HANDOFF TO SHELTER SPECIALIST TOOL
+    # =====================================================================
+    @function_tool
+    async def transfer_to_shelter_specialist(
+        self,
+        context: RunContext,
+        location: str = "Guwahati",
+        reason: str = "User requested shelter locations, capacity, rules, or pet policy",
+    ) -> None:
+        """
+        Transfer the conversation to the Shelter Information Specialist.
+        Use this tool ONLY when the user's request requires specialized shelter information.
+        """
+        logger.info(f"[Main Agent Handoff Tool] Initiating transfer for '{location}'. Reason: '{reason}'")
+        self.mark_successful("Handoff to Shelter Information Specialist completed")
+
+        loc_clean = location.strip()
+        if not loc_clean and isinstance(self.call_context.get("facts"), dict):
+            loc_clean = str(self.call_context["facts"].get("location", "")).strip()
+
+        target_loc = loc_clean or "Guwahati"
+
+        # 1. Update frontend UI badge & avatar
+        if hasattr(context.session, "room") and context.session.room:
+            try:
+                payload = json.dumps({
+                    "type": "AGENT_HANDOFF",
+                    "agent": "shelter_specialist",
+                    "title": "Shelter Information Specialist"
+                })
+                await context.session.room.local_participant.publish_data(payload.encode("utf-8"), reliable=True)
+            except Exception as e:
+                logger.debug(f"UI data packet skipped: {e}")
+
+        # 2. Update agent to specialist
+        specialist = ShelterInformationSpecialist(
+            call_context=self.call_context,
+            location=target_loc,
         )
+        if hasattr(context.session, "update_agent"):
+            context.session.update_agent(specialist)
+
+        # 3. Fetch live shelter data and speak greeting directly to caller
+        shelter_data = disaster_data.compute_nearest_shelters(location=target_loc)
+        greeting = (
+            f"Hello, I am the Shelter Information Specialist for Disaster Response. "
+            f"I have received your request for {target_loc}. {shelter_data} "
+            f"Would you like directions, pet policy details, or check-in rules?"
+        )
+        if hasattr(context.session, "say"):
+            await context.session.say(greeting, allow_interruptions=True)
 
         return (
-            f"SUCCESS: Ticket '{updated['ticket_id']}' for {updated['caller_name']} has been marked as RESOLVED. "
-            f"An automated resolution callback has been dispatched to notify the caller."
+            f"I will connect you to our shelter information specialist right away. "
+            f"Shelter Information Specialist for {target_loc} has taken over: {shelter_data}"
         )
 
 
@@ -401,7 +487,6 @@ async def my_agent(ctx: JobContext):
 
     is_outbound_sip = "outbound" in ctx.room.name or "sip" in ctx.room.name
     
-    # Only look up saved caller profile if room/participant metadata specifically identifies a user_id
     caller_record = None
     room_name = ctx.room.name
     if "user_" in room_name or "caller_" in room_name:
@@ -446,7 +531,7 @@ async def my_agent(ctx: JobContext):
             f"- You are speaking with {user_name}.\n"
             f"- Address them directly by name ({user_name}).\n"
             f"- Ask about their safety status.\n"
-            f"- If requested to delete, wipe, or forget their details, invoke `forget_caller()` tool.\n"
+            f"- If requested to delete or forget their details, invoke `forget_caller()` tool.\n"
         )
     else:
         current_prompt = (
@@ -488,21 +573,21 @@ async def my_agent(ctx: JobContext):
         has_hindi_keyword = any(kw in text.lower() for kw in HINDI_KEYWORDS)
 
         target_agent = session.current_agent or assistant
+        base_prompt = SHELTER_SPECIALIST_PROMPT if isinstance(target_agent, ShelterInformationSpecialist) else current_prompt
 
         if is_devanagari or has_hindi_keyword:
             target_agent.instructions = (
-                f"{current_prompt}\n\n"
+                f"{base_prompt}\n\n"
                 "Respond ENTIRELY in natural HINDI (Devanagari script). Write numbers out as spoken words."
             )
         else:
             target_agent.instructions = (
-                f"{current_prompt}\n\n"
+                f"{base_prompt}\n\n"
                 "Respond ENTIRELY in natural ENGLISH. Write numbers out as spoken words."
             )
 
     @session.on("user_state_changed")
     def on_user_state_changed(event):
-        logger.info(f"🗣️ [USER STATE]: {event.new_state}")
         state_str = str(event.new_state).lower()
         if "speaking" in state_str or "listening" in state_str:
             call_context["has_user_interacted"] = True
@@ -510,7 +595,6 @@ async def my_agent(ctx: JobContext):
 
     @session.on("agent_state_changed")
     def on_agent_state_changed(event):
-        logger.info(f"🤖 [AGENT STATE]: {event.new_state}")
         state_str = str(event.new_state).lower()
         if "speaking" in state_str:
             call_context["user_replied_to_last_agent_turn"] = False
@@ -521,16 +605,15 @@ async def my_agent(ctx: JobContext):
 
     @ctx.room.on("participant_connected")
     def on_participant_connected(participant: rtc.RemoteParticipant):
-        logger.info(f"👤 [PARTICIPANT CONNECTED]: {participant.identity} (Kind: {participant.kind})")
+        logger.info(f"👤 [PARTICIPANT CONNECTED]: {participant.identity}")
 
     @ctx.room.on("track_subscribed")
     def on_track_subscribed(track: rtc.Track, publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
-        logger.info(f"🔊 [TRACK SUBSCRIBED]: Kind={track.kind}, SID={publication.sid}, Participant={participant.identity}")
+        logger.info(f"🔊 [TRACK SUBSCRIBED]: Kind={track.kind}, Participant={participant.identity}")
 
     @ctx.room.on("data_received")
     def on_data_received(dp: rtc.DataPacket):
         try:
-            # Ignore self-sent data packets from agent
             if dp.participant and dp.participant.identity == ctx.room.local_participant.identity:
                 return
 
@@ -558,21 +641,22 @@ async def my_agent(ctx: JobContext):
             call_context["has_user_interacted"] = True
             call_context["user_replied_to_last_agent_turn"] = True
             call_context["user_speech_count"] += 1
-            logger.info(f"💬 [USER TEXT CHAT RECEIVED]: '{text_content}' (Topic: '{dp.topic}')")
+            logger.info(f"💬 [USER CHAT RECEIVED]: '{text_content}'")
 
             is_devanagari = bool(re.search(r'[\u0900-\u097F]', text_content))
             has_hindi_keyword = any(kw in text_content.lower() for kw in HINDI_KEYWORDS)
 
             target_agent = session.current_agent or assistant
+            base_prompt = SHELTER_SPECIALIST_PROMPT if isinstance(target_agent, ShelterInformationSpecialist) else current_prompt
 
             if is_devanagari or has_hindi_keyword:
                 target_agent.instructions = (
-                    f"{current_prompt}\n\n"
+                    f"{base_prompt}\n\n"
                     "Respond ENTIRELY in natural HINDI (Devanagari script). Write numbers out as spoken words."
                 )
             else:
                 target_agent.instructions = (
-                    f"{current_prompt}\n\n"
+                    f"{base_prompt}\n\n"
                     "Respond ENTIRELY in natural ENGLISH. Write numbers out as spoken words."
                 )
 
@@ -582,7 +666,6 @@ async def my_agent(ctx: JobContext):
             logger.error(f"Error handling user text chat: {e}")
 
     await ctx.connect()
-
 
     await session.start(
         agent=assistant,
@@ -598,51 +681,35 @@ async def my_agent(ctx: JobContext):
         ),
     )
 
-    # DYNAMIC OPENING GREETING
+    # Initial Greeting
     if is_outbound_sip:
-        # Give SIP media pipeline 1.8 seconds to establish before pushing TTS stream
         await asyncio.sleep(1.8)
-        
         if has_saved_caller:
-            if user_location:
-                opening_text = (
-                    f"Hello {user_name}! This is an automated emergency check from Sentinel Command regarding the flood alert near {user_location}. "
-                    f"To stop automated checks, say stop calling me. "
-                    f"How are you doing right now, and are you safe?"
-                )
-            else:
-                opening_text = (
-                    f"Hello {user_name}! This is an automated emergency check from Sentinel Command regarding the flood alert. "
-                    f"To stop automated checks, say stop calling me. "
-                    f"How are you doing right now, and are you safe?"
-                )
+            loc_msg = f" regarding the flood alert near {user_location}" if user_location else " regarding the flood alert"
+            opening_text = (
+                f"Hello {user_name}! This is an automated emergency check from Sentinel Command{loc_msg}. "
+                f"To stop automated checks, say stop calling me. "
+                f"How are you doing right now, and are you safe?"
+            )
         else:
             opening_text = (
                 "Hello! This is an automated emergency welfare check from Sentinel Command regarding the flood alert. "
                 "To stop automated checks, say stop calling me. "
                 "Are you and your household safe?"
             )
-        
         await session.say(opening_text, allow_interruptions=True)
     else:
-        # WebRTC / Browser Session Opening
         if has_saved_caller:
-            if user_location:
-                opening_text = (
-                    f"Hello {user_name}! Welcome back to Sentinel Emergency Command. "
-                    f"I have your location saved as {user_location}. Are you safe today and how can I assist you?"
-                )
-            else:
-                opening_text = (
-                    f"Hello {user_name}! Welcome back to Sentinel Emergency Command. "
-                    f"Are you safe today and how can I assist you?"
-                )
+            loc_msg = f"I have your location saved as {user_location}. " if user_location else ""
+            opening_text = (
+                f"Hello {user_name}! Welcome back to Sentinel Emergency Command. "
+                f"{loc_msg}Are you safe today and how can I assist you?"
+            )
         else:
             opening_text = (
                 "Hello! I am Sentinel from the National Emergency Management Command. "
                 "Are you safe, and how can I help you today?"
             )
-        
         await session.say(opening_text, allow_interruptions=True)
 
     call_context["user_replied_to_last_agent_turn"] = False
@@ -693,4 +760,4 @@ async def my_agent(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    cli.run_app(server)
+    cli.run_app(server)

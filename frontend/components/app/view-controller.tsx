@@ -46,7 +46,28 @@ export function ViewController({ appConfig }: ViewControllerProps) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isAttemptingStart, setIsAttemptingStart] = useState(false);
 
-  // Monitor connection transition to detect when a call ends
+  // Catch and suppress transient PublishTrackError during WebRTC connection setup
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      if (
+        reason &&
+        (reason.name === 'PublishTrackError' ||
+          (typeof reason.message === 'string' &&
+            reason.message.includes('publishing rejected as engine not connected')))
+      ) {
+        console.warn('Suppressed transient PublishTrackError during WebRTC setup:', reason.message);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  // Monitor connection transition to detect when a call ends & safely enable microphone
   useEffect(() => {
     if (isConnected) {
       setHasStartedOnce(true);
@@ -54,10 +75,17 @@ export function ViewController({ appConfig }: ViewControllerProps) {
       setIsAttemptingStart(false);
       setMicError(false);
       setConnectionError(null);
+
+      // Enable local microphone safely after connection is fully established
+      if (session.room?.localParticipant) {
+        session.room.localParticipant.setMicrophoneEnabled(true).catch((err: any) => {
+          console.warn('Microphone enable error after connection:', err);
+        });
+      }
     } else if (hasStartedOnce && !isConnected && !isConnecting && !isAttemptingStart) {
       setHasEnded(true);
     }
-  }, [isConnected, isConnecting, hasStartedOnce, isAttemptingStart]);
+  }, [isConnected, isConnecting, hasStartedOnce, isAttemptingStart, session.room]);
 
   // Handler to start call with explicit error separation
   const handleStartCall = useCallback(async () => {
@@ -71,7 +99,12 @@ export function ViewController({ appConfig }: ViewControllerProps) {
       if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
         await navigator.mediaDevices.getUserMedia({ audio: true });
       }
-      await start();
+      
+      // Start connection first without parallel track publishing to avoid engine connection race conditions
+      await start({ tracks: { microphone: { enabled: false } } }).catch(async () => {
+        // Fallback retry with default start
+        await start();
+      });
     } catch (err: any) {
       console.error('Connection or microphone error:', err);
       setIsAttemptingStart(false);
@@ -91,6 +124,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
       }
     }
   }, [start]);
+
 
   // Restart call handler from Call Ended screen
   const handleRestartCall = useCallback(() => {
